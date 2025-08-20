@@ -2,88 +2,69 @@
 
 # Subtitle Timeline Adjuster
 
-A lightweight, web-based tool to adjust the timeline of subtitle files (.srt, .ass), supporting both local files and browsing files directly from a server/Server.
+A lightweight, web-based tool to adjust the timeline of subtitle files (.srt, .ass), supporting both local files and browsing files directly from a server.
 
 ![Application Screenshot](./assets/应用截图.png)
 
 ---
 
-This tool provides a simple, fast, and lightweight solution for shifting subtitle timestamps. It supports two modes: uploading local files, or browsing and streaming files from a pre-configured directory on the server, making it ideal for use on a home Server.
+This tool provides a simple, fast, and lightweight solution for shifting subtitle timestamps. It supports two modes: uploading local files, or browsing and streaming files from a pre-configured directory on the server.
 
 ## ✨ Features
 
-- **Dual Mode**: 
-  - **Local Mode**: Upload files directly from your computer via drag-and-drop or a file picker.
-  - **Server Mode**: Browse and stream media files directly from a directory on the server.
-- **Real-time Adjustment**: Instantly preview subtitle timing changes in the browser.
-- **Flexible Controls**:
-  - **Quick-step buttons** for fine-tuning (+/- 50ms).
-  - **Manual input** for large adjustments.
-  - **Variable playback speed** for precise synchronization.
-- **Token Authentication**: File access in Server mode can be secured with a token.
+- **Dual Mode**: Handle local files via upload/drag-drop or browse files on the server.
+- **Server Mode**: Browse and stream media files directly from a directory on the server.
+- **Real-time Adjustment**: Instantly preview subtitle timing changes.
+- **Flexible Controls**: Quick-step buttons, manual input, and variable playback speed.
+- **Token Authentication**: Server mode can be secured with a token.
 - **Cross-Platform**: Runs on Windows, macOS, and Linux (requires Node.js).
-- **Lightweight**: No `ffmpeg` dependency. All processing is done in JavaScript.
+- **Lightweight**: No `ffmpeg` dependency.
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Node.js, Express, Multer
+- **Backend**: Node.js, Express, PM2, Multer
 - **Frontend**: Vanilla JavaScript (HTML5, CSS3)
-- **Subtitle Parsing**: `srt-parser-2`, `ass-parser`, `ass-stringify`
 
-## 🚀 Getting Started
+## 🚀 Getting Started (Development)
 
-### 1. Configuration (Important)
+1.  **Clone the repo** and `cd` into it.
+2.  **Install dependencies**: `npm install`
+3.  **Configure (Optional)**: To enable server file browsing, create and edit `config.json` as described in the Deployment section.
+4.  **Run the server**: `node src/server.js`
+5.  **Open the app**: Navigate to `http://localhost:3000` in your browser.
 
-The project supports two modes, controlled by a configuration file.
+## 🚢 Deployment (Production)
 
-- **Local-Only Mode (Default)**: 
-  - No configuration is needed. Proceed to the installation step. The "Browse from Server" feature will be disabled.
+Using PM2 for persistent deployment is recommended. The project is pre-configured with the necessary scripts.
 
-- **Enabling Server Mode**:
-  1.  Copy the `config.example.json` file in the project root to a new file named `config.json`.
-  2.  Open `config.json` with a text editor and modify its contents:
-      ```json
-      {
-        "mediaDirectory": "/path/to/your/media/folder",
-        "serverToken": "a-very-secret-token"
-      }
-      ```
-      - `mediaDirectory`: **Required**. The absolute path to your media library on the server. Use forward slashes `/` or escaped backslashes `\` for the path.
-      - `serverToken`: **Optional**. A secret token. If set, the frontend must provide this token to access files in Server mode.
+1.  **Install & Configure**: Ensure you have cloned the repo, installed dependencies (`npm install`), and configured `config.json` if needed.
 
-> **Advanced Usage**: You can also configure the application by setting the `MEDIA_DIR` and `Server_TOKEN` environment variables, which will override the `config.json` file.
-
-### 2. Installation & Running
-
-1.  **Clone the repository:**
+2.  **Start the Application**:
     ```bash
-    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
-    cd subtitle-timeline-adjuster
+    npm start
     ```
+    This command uses PM2 to start and daemonize the application. It will be automatically restarted on crash or server reboot.
 
-2.  **Install dependencies:**
+3.  **Setup Startup Hook (One-time command)**:
+    To enable PM2 to launch on boot, you need to run a one-time setup command:
     ```bash
-    npm install
+    pm2 startup
     ```
+    - This will generate another command. **You must copy and paste the command it gives you** to finalize the setup (it may require `sudo` on Linux/macOS).
+    - Finally, run `pm2 save` to freeze the current process list for reboot.
 
-3.  **Run the server:**
-    ```bash
-    node src/server.js
-    ```
-
-4.  **Open the application:**
-    Open your web browser and navigate to `http://localhost:3000`.
+4.  **Manage the Application**:
+    - `npm stop`: Stop the application.
+    - `npm run restart`: Restart the application.
+    - `npm run logs`: View application logs.
+    - `npm run monit`: Open the performance monitor.
+    - `npm run delete`: Remove the app from PM2's management.
 
 ## 📝 Usage / Workflow
 
-1.  **(Server Mode)** If you have configured a token, enter it in the "Server Settings" section on the top left.
-2.  **Add Files**: Click the "Add Video" or "Add Subtitle" button. A modal will appear, allowing you to choose:
-    - **Upload from Computer**: Opens the system file picker.
-    - **Browse from Server**: Opens the server file browser.
-    - You can also **drag and drop local files** directly onto the Video or Subtitle list areas.
-3.  **Select Files**: Click on a video and a subtitle from the lists to activate them. The `(LOCAL)` or `(Server)` tag indicates the file source.
-4.  **Load Preview**: Click the **"Load/Reset Preview"** button to load the selected files into the player.
-5.  **Adjust & Save**: Use the controls on the right to adjust timing in real-time. When satisfied, click **"Save Subtitle"** to download the adjusted file.
+1.  **(Server Mode)** If you configured a token, enter it in the "Server Settings" section.
+2.  **Add Files**: Click "Add File" and choose to upload from your computer or browse from the server.
+3.  **Adjust & Save**: Select files from the list to load them, use the controls on the right to adjust, and click "Save Subtitle" when done.
 
 ## 📄 License
 
