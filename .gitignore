@@ -1,0 +1,16 @@
+# Dependencies
+/node_modules
+
+# Temporary Uploads
+# The /uploads directory is created automatically by the server if it does not exist.
+# It is cleaned upon server shutdown. It should not be tracked by Git.
+/uploads
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-generated files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>字幕时间轴调整工具</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    .main-container {
+      display: flex;
+      height: 100vh;
+      padding: 10px;
+      gap: 10px;
+      box-sizing: border-box;
+    }
+    .left-panel, .right-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .left-panel {
+      flex: 1;
+      min-width: 0; /* Fix for flexbox overflow issue */
+    }
+    .right-panel {
+      flex: 2;
+      min-width: 500px;
+    }
+    .section {
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+    }
+    .left-panel .section {
+        flex-shrink: 0;
+    }
+    .left-panel .file-list-section {
+        flex-grow: 1;
+        min-height: 200px;
+    }
+    .section h2, .list-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 0;
+        font-size: 1.1em;
+        flex-shrink: 0;
+    }
+    .file-input-area {
+      border: 2px dashed #ccc;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .file-lists-container {
+        display: flex;
+        gap: 10px;
+        flex-grow: 1;
+    }
+    .file-list-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0; /* Allow wrapper to shrink */
+    }
+    .file-list {
+        border: 1px solid #eee;
+        padding: 8px;
+        overflow-y: auto;
+        background-color: #fff;
+        flex-grow: 1;
+    }
+    .file-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .file-list-item span {
+        flex-grow: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .delete-btn, .step-btn, .speed-btn {
+        background-color: #f44336;
+        color: white;
+        border: none;
+        padding: 2px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-left: 10px;
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+    .step-btn {
+        background-color: #2196F3;
+        font-weight: bold;
+    }
+    .speed-btn {
+        background-color: #009688;
+    }
+    .file-list-item.active {
+        background-color: #e0ffe0;
+        font-weight: bold;
+    }
+    .right-panel .player-wrapper {
+        flex-grow: 1;
+    }
+    video {
+      width: 100%;
+      flex-grow: 1;
+      background-color: #000;
+    }
+    #subtitleDisplay {
+      width: 100%;
+      box-sizing: border-box;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 10px;
+      text-align: center;
+      min-height: 50px;
+      margin-top: 5px;
+    }
+    .adjustment-controls {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <div class="left-panel">
+        <h1 style="flex-shrink: 0;">字幕时间轴调整工具</h1>
+        <div class="section">
+          <h2>文件上传</h2>
+          <div class="file-lists-container">
+            <div class="file-input-area" id="videoDropArea">
+              <p>拖放视频文件</p>
+              <input type="file" id="videoFiles" accept="video/*" multiple style="display: none;">
+            </div>
+            <div class="file-input-area" id="subtitleDropArea">
+              <p>拖放字幕文件</p>
+              <input type="file" id="subtitleFiles" accept=".ass,.srt" multiple style="display: none;">
+            </div>
+          </div>
+        </div>
+        <div class="section file-list-section">
+            <h2>文件列表</h2>
+            <div class="file-lists-container">
+                <div class="file-list-wrapper">
+                    <div class="list-header">
+                        <h4>视频</h4>
+                        <button onclick="clearVideoList()" class="delete-btn">清空</button>
+                    </div>
+                    <div id="videoList" class="file-list"></div>
+                </div>
+                <div class="file-list-wrapper">
+                    <div class="list-header">
+                        <h4>字幕</h4>
+                        <button onclick="clearSubtitleList()" class="delete-btn">清空</button>
+                    </div>
+                    <div id="subtitleList" class="file-list"></div>
+                </div>
+            </div>
+            <div id="status" style="margin-top: 10px; flex-shrink: 0;"></div>
+        </div>
+    </div>
+    <div class="right-panel">
+        <div class="section player-wrapper">
+            <h2>预览和处理</h2>
+            <div class="adjustment-controls">
+                <label>快捷微调:</label>
+                <button class="step-btn" onclick="stepAdjust(-50)">« -50ms</button>
+                <button class="step-btn" onclick="stepAdjust(50)">+50ms »</button>
+                <label for="playbackRateInput">播放速度:</label>
+                <input type="number" id="playbackRateInput" min="0.1" max="4" step="0.1" value="1.0" onchange="setPlaybackRate()" style="width: 60px;">
+                <button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button>
+                <button class="speed-btn" onclick="setSpeed(1.0)">1.0x</button>
+                <button class="speed-btn" onclick="setSpeed(1.5)">1.5x</button>
+            </div>
+            <div class="adjustment-controls">
+                <label for="timeAdjustment">手动调整(ms):</label>
+                <input type="number" id="timeAdjustment" step="50" value="0" style="width: 80px;">
+                <select id="adjustDirection">
+                    <option value="add">字幕延迟</option>
+                    <option value="subtract">字幕提前</option>
+                </select>
+                <button onclick="applyRealtimeAdjustment()">应用手动调整</button>
+            </div>
+            <div class="adjustment-controls">
+                 <button onclick="previewActiveFiles()">加载/重置预览</button>
+                 <button onclick="saveAdjustedSubtitle()">保存字幕</button>
+            </div>
+            <video id="videoPlayer" controls>
+                您的浏览器不支持视频播放。
+            </video>
+            <div id="subtitleDisplay"></div>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    let allVideos = [];
+    let allSubtitles = [];
+    let activeVideo = null;
+    let activeSubtitle = null;
+    let originalSubtitleData = null;
+    let activeSubtitleData = null;
+
+    const timeAdjustmentInput = document.getElementById('timeAdjustment');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const playbackRateInput = document.getElementById('playbackRateInput');
+
+    // --- Setup Drag and Drop ---
+    const videoDropArea = document.getElementById('videoDropArea');
+    const subtitleDropArea = document.getElementById('subtitleDropArea');
+    const videoFileInput = document.getElementById('videoFiles');
+    const subtitleFileInput = document.getElementById('subtitleFiles');
+
+    videoDropArea.onclick = () => videoFileInput.click();
+    subtitleDropArea.onclick = () => subtitleFileInput.click();
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        videoDropArea.addEventListener(eventName, preventDefaults, false);
+        subtitleDropArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    videoDropArea.addEventListener('drop', handleFiles(allVideos, 'video', renderVideoList), false);
+    subtitleDropArea.addEventListener('drop', handleFiles(allSubtitles, 'subtitle', renderSubtitleList), false);
+    videoFileInput.addEventListener('change', handleFiles(allVideos, 'video', renderVideoList), false);
+    subtitleFileInput.addEventListener('change', handleFiles(allSubtitles, 'subtitle', renderSubtitleList), false);
+
+    function handleFiles(fileArray, fileType, renderFunc) {
+        return function(e) {
+            const files = e.dataTransfer ? e.dataTransfer.files : e.target.files;
+            let added_count = 0;
+            let invalid_files = [];
+
+            for (const file of files) {
+                if (fileType === 'video' && !file.type.startsWith('video/')) {
+                    invalid_files.push(file.name);
+                    continue;
+                }
+                if (fileType === 'subtitle' && !file.name.endsWith('.srt') && !file.name.endsWith('.ass')) {
+                    invalid_files.push(file.name);
+                    continue;
+                }
+                if (!fileArray.some(f => f.name === file.name)) {
+                    fileArray.push(file);
+                    added_count++;
+                }
+            }
+
+            if (invalid_files.length > 0) {
+                alert(`以下文件类型无效，已被忽略:\n${invalid_files.join('\n')}`);
+            }
+            
+            if(added_count > 0) {
+                renderFunc();
+            }
+        }
+    }
+
+    // --- Render Lists & File Management ---
+    function clearVideoList() {
+        if (allVideos.length > 0 && confirm('确定要清空视频列表吗？')) {
+            allVideos = [];
+            activeVideo = null;
+            renderVideoList();
+            updateStatus();
+        }
+    }
+
+    function clearSubtitleList() {
+        if (allSubtitles.length > 0 && confirm('确定要清空字幕列表吗？')) {
+            allSubtitles = [];
+            activeSubtitle = null;
+            originalSubtitleData = null;
+            activeSubtitleData = null;
+            renderSubtitleList();
+            updateStatus();
+        }
+    }
+
+    function renderVideoList() {
+        renderList('videoList', allVideos, (file) => {
+            activeVideo = file;
+            renderVideoList();
+            updateStatus();
+        }, (index) => {
+            removeFile(allVideos, index, 'video');
+        });
+    }
+
+    function renderSubtitleList() {
+        renderList('subtitleList', allSubtitles, (file) => {
+            activeSubtitle = file;
+            originalSubtitleData = null;
+            activeSubtitleData = null;
+            renderSubtitleList();
+            updateStatus();
+        }, (index) => {
+            removeFile(allSubtitles, index, 'subtitle');
+        });
+    }
+
+    function renderList(elementId, files, selectCallback, deleteCallback) {
+        const listEl = document.getElementById(elementId);
+        listEl.innerHTML = '';
+        files.forEach((file, index) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'file-list-item';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = file.name;
+            nameSpan.title = file.name;
+            nameSpan.onclick = () => selectCallback(file);
+            
+            if ((elementId === 'videoList' && file === activeVideo) || (elementId === 'subtitleList' && file === activeSubtitle)) {
+                itemEl.classList.add('active');
+            }
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.textContent = '删除';
+            deleteBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteCallback(index);
+            };
+            
+            itemEl.appendChild(nameSpan);
+            itemEl.appendChild(deleteBtn);
+            listEl.appendChild(itemEl);
+        });
+    }
+
+    function removeFile(fileArray, index, type) {
+        const removedFile = fileArray.splice(index, 1)[0];
+        if (type === 'video' && removedFile === activeVideo) {
+            activeVideo = null;
+        }
+        if (type === 'subtitle' && removedFile === activeSubtitle) {
+            activeSubtitle = null;
+            originalSubtitleData = null;
+            activeSubtitleData = null;
+        }
+
+        if (type === 'video') {
+            renderVideoList();
+        } else {
+            renderSubtitleList();
+        }
+        updateStatus();
+    }
+    
+    function updateStatus() {
+        let statusText = '当前选择: ';
+        statusText += activeVideo ? `视频 - ${activeVideo.name}` : ' (未选择视频)';
+        statusText += ' | ';
+        statusText += activeSubtitle ? `字幕 - ${activeSubtitle.name}` : ' (未选择字幕)';
+        document.getElementById('status').textContent = statusText;
+    }
+
+    // --- Actions ---
+    function setPlaybackRate() {
+        const newRate = parseFloat(playbackRateInput.value);
+        if (newRate > 0 && newRate <= 16) { // HTML5 video spec allows up to 16x
+             videoPlayer.playbackRate = newRate;
+        } else {
+            playbackRateInput.value = videoPlayer.playbackRate;
+        }
+    }
+
+    function setSpeed(rate) {
+        playbackRateInput.value = rate;
+        setPlaybackRate();
+    }
+
+    function previewActiveFiles() {
+        if (!activeVideo) {
+            alert('请从列表中选择一个视频文件');
+            return;
+        }
+        videoPlayer.src = URL.createObjectURL(activeVideo);
+
+        if (activeSubtitle) {
+            loadSubtitleForPreview(activeSubtitle);
+        } else {
+            originalSubtitleData = null;
+            activeSubtitleData = null;
+            document.getElementById('subtitleDisplay').textContent = '';
+        }
+    }
+
+    function stepAdjust(amountInMs) {
+        if (!activeSubtitleData) {
+            alert('请先加载字幕');
+            return;
+        }
+        const amountInSeconds = amountInMs / 1000;
+        activeSubtitleData.forEach(line => {
+            line.start += amountInSeconds;
+            line.end += amountInSeconds;
+            if (line.start < 0) line.start = 0;
+            if (line.end < 0) line.end = 0;
+        });
+        displaySubtitle(true);
+    }
+
+    function applyRealtimeAdjustment() {
+        if (!originalSubtitleData) {
+            alert('请先加载一个字幕文件进行预览');
+            return;
+        }
+        const timeAdjustment = getManualTimeAdjustment();
+        activeSubtitleData = JSON.parse(JSON.stringify(originalSubtitleData));
+
+        activeSubtitleData.forEach(line => {
+            line.start += timeAdjustment;
+            line.end += timeAdjustment;
+            if (line.start < 0) line.start = 0;
+            if (line.end < 0) line.end = 0;
+        });
+
+        displaySubtitle(true);
+    }
+
+    function saveAdjustedSubtitle() {
+        if (!activeSubtitle) {
+            alert('请先选择一个要保存的字幕文件');
+            return;
+        }
+        
+        let totalOffset = 0;
+        if (originalSubtitleData && activeSubtitleData && originalSubtitleData.length > 0 && activeSubtitleData.length > 0) {
+            totalOffset = activeSubtitleData[0].start - originalSubtitleData[0].start;
+        } else {
+            totalOffset = getManualTimeAdjustment();
+        }
+
+        const formData = new FormData();
+        formData.append('timeAdjustment', totalOffset);
+        const fieldName = activeVideo ? activeVideo.name : 'subtitles';
+        formData.append(fieldName, activeSubtitle, activeSubtitle.name);
+        
+        document.getElementById('status').textContent = '正在后台保存...';
+
+        fetch('/batch-adjust-timeline', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('status').textContent = '保存失败: ' + data.error;
+            } else {
+                document.getElementById('status').innerHTML = '保存成功! 下载链接: ' + data.downloadLinks.map(link => `<a href="${link}" download>${link.split('/').pop()}</a>`).join(', ');
+            }
+        })
+        .catch(error => {
+            document.getElementById('status').textContent = '保存失败: ' + error.message;
+        });
+    }
+
+    function getManualTimeAdjustment() {
+        const adjustDirection = document.getElementById('adjustDirection').value;
+        const timeInMs = parseFloat(timeAdjustmentInput.value) || 0;
+        const timeInSeconds = timeInMs / 1000;
+        return adjustDirection === 'add' ? timeInSeconds : -timeInSeconds;
+    }
+
+    // --- Subtitle Parsing and Display Logic ---
+    function loadSubtitleForPreview(subtitleFile) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const buffer = event.target.result;
+        let text = '';
+        const encodings = ['utf-8', 'gbk', 'gb2312', 'big5', 'utf-16'];
+        for (const encoding of encodings) {
+          try { text = new TextDecoder(encoding, { fatal: true }).decode(buffer); break; } catch (e) {}
+        }
+        if (!text) { text = new TextDecoder().decode(buffer); }
+        
+        const parsedData = parseSubtitle(text, subtitleFile.name);
+        originalSubtitleData = JSON.parse(JSON.stringify(parsedData));
+        activeSubtitleData = JSON.parse(JSON.stringify(parsedData));
+
+        displaySubtitle(true);
+      };
+      reader.readAsArrayBuffer(subtitleFile);
+    }
+    
+    function parseSubtitle(content, fileName) {
+      if (fileName.endsWith('.ass') || fileName.endsWith('.ssa')) return parseASSSubtitle(content);
+      if (fileName.endsWith('.srt')) return parseSRTSubtitle(content);
+      return [];
+    }
+
+    function parseASSSubtitle(content) {
+      const lines = content.split('\n');
+      const subtitles = [];
+      let isInEvents = false;
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('[Events]')) { isInEvents = true; continue; }
+        if (isInEvents && trimmedLine.startsWith('[')) break;
+        if (isInEvents && trimmedLine.startsWith('Dialogue:')) {
+          const parts = trimmedLine.split(',');
+          if (parts.length >= 10) {
+            subtitles.push({
+              start: parseASSTime(parts[1]),
+              end: parseASSTime(parts[2]),
+              text: parts.slice(9).join(',').replace(/\N/g, '\n').replace(/\{.*?\}/g, '')
+            });
+          }
+        }
+      }
+      return subtitles;
+    }
+
+    function parseASSTime(timeStr) {
+      const parts = timeStr.split(':');
+      return parts.length === 3 ? (parseInt(parts[0],10)*3600 + parseInt(parts[1],10)*60 + parseFloat(parts[2])) : 0;
+    }
+
+    function parseSRTSubtitle(content) {
+      return content.split('\n\n').map(block => {
+        const lines = block.trim().split('\n');
+        if (lines.length >= 2) {
+          const timeParts = lines[1].split(' --> ');
+          if (timeParts.length === 2) {
+            return {
+              start: parseSRTTime(timeParts[0]),
+              end: parseSRTTime(timeParts[1]),
+              text: lines.slice(2).join('\n')
+            };
+          }
+        }
+        return null;
+      }).filter(Boolean);
+    }
+
+    function parseSRTTime(timeStr) {
+      const parts = timeStr.split(/[:,]/);
+      return parts.length === 4 ? (parseInt(parts[0],10)*3600 + parseInt(parts[1],10)*60 + parseInt(parts[2],10) + parseInt(parts[3],10)/1000) : 0;
+    }
+
+    let animationFrameId = null;
+    function displaySubtitle(forceUpdate = false) {
+      if (!forceUpdate && animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+      }
+      
+      const videoPlayer = document.getElementById('videoPlayer');
+      const subtitleDisplay = document.getElementById('subtitleDisplay');
+      const currentTime = videoPlayer.currentTime;
+      let currentSubtitle = '';
+
+      if (activeSubtitleData) {
+        for (const subtitle of activeSubtitleData) {
+          if (currentTime >= subtitle.start && currentTime <= subtitle.end) {
+            currentSubtitle = subtitle.text;
+            break;
+          }
+        }
+      }
+      subtitleDisplay.textContent = currentSubtitle;
+
+      if (!videoPlayer.paused) {
+        animationFrameId = requestAnimationFrame(() => displaySubtitle(false));
+      }
+    }
+
+    document.getElementById('videoPlayer').addEventListener('play', () => displaySubtitle(false));
+    document.getElementById('videoPlayer').addEventListener('seeking', () => displaySubtitle(true));
+    document.getElementById('videoPlayer').addEventListener('pause', () => cancelAnimationFrame(animationFrameId));
+  </script>
+</body>
+</html>
