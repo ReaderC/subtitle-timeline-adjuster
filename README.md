@@ -5,7 +5,6 @@
 一个轻量级的、基于 Web 的工具，用于调整字幕文件（.srt, .ass）的时间轴，并提供实时预览功能。
 
 ![应用截图](./assets/应用截图.png)
-*你可以将上面的占位符链接替换为应用的实际截图或 GIF 动图。*
 
 ---
 
@@ -41,7 +40,7 @@
 
 1.  **克隆仓库:**
     ```bash
-    git clone https://github.com/your-username/subtitle-timeline-adjuster.git
+    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
     cd subtitle-timeline-adjuster
     ```
 

@@ -5,7 +5,6 @@
 A lightweight, web-based tool to adjust the timeline of subtitle files (.srt, .ass) with real-time preview.
 
 ![Application Screenshot](./assets/应用截图.png)
-*You can replace the placeholder above with a screenshot or GIF of the application.* 
 
 ---
 
@@ -41,7 +40,7 @@ You must have [Node.js](https://nodejs.org/) (which includes npm) installed on y
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/subtitle-timeline-adjuster.git
+    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
     cd subtitle-timeline-adjuster
     ```
 
