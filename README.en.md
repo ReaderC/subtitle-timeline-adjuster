@@ -40,7 +40,7 @@ You must have [Node.js](https://nodejs.org/) (which includes npm) installed on y
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/subtitle-timeline-adjuster.git
+    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
     cd subtitle-timeline-adjuster
     ```
 
