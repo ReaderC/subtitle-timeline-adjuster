@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "pm2 start src/server.js --name subtitle-adjuster",
-    "stop": "pm2 stop subtitle-adjuster",
-    "restart": "pm2 restart subtitle-adjuster",
-    "logs": "pm2 logs subtitle-adjuster",
-    "monit": "pm2 monit",
-    "delete": "pm2 delete subtitle-adjuster",
+    "start": "./node_modules/.bin/pm2 start src/server.js --name subtitle-adjuster",
+    "stop": "./node_modules/.bin/pm2 stop subtitle-adjuster",
+    "restart": "./node_modules/.bin/pm2 restart subtitle-adjuster",
+    "logs": "./node_modules/.bin/pm2 logs subtitle-adjuster",
+    "monit": "./node_modules/.bin/pm2 monit",
+    "delete": "./node_modules/.bin/pm2 delete subtitle-adjuster",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
