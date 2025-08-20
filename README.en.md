@@ -4,7 +4,7 @@
 
 A lightweight, web-based tool to adjust the timeline of subtitle files (.srt, .ass) with real-time preview.
 
-![Screenshot Placeholder](https://via.placeholder.com/800x450.png?text=App+Screenshot+Here)
+![Application Screenshot](./assets/应用截图.png)
 *You can replace the placeholder above with a screenshot or GIF of the application.* 
 
 ---
