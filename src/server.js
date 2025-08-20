@@ -9,7 +9,6 @@ const fsSync = require('fs');
 function getConfig() {
     const configPath = path.join(__dirname, '../config.json');
     let config = {};
-    // Priority: Environment Variables > config.json
     try {
         if (fsSync.existsSync(configPath)) {
             const rawConfig = fsSync.readFileSync(configPath, 'utf-8');
@@ -22,22 +21,22 @@ function getConfig() {
 
     return {
         mediaDirectory: process.env.MEDIA_DIR || config.mediaDirectory,
-        nasToken: process.env.NAS_TOKEN || config.nasToken
+        serverToken: process.env.SERVER_TOKEN || config.serverToken
     };
 }
 
 const config = getConfig();
 const mediaRoot = config.mediaDirectory ? path.normalize(config.mediaDirectory) : null;
-const nasToken = config.nasToken;
-const isNasEnabled = !!mediaRoot;
+const serverToken = config.serverToken;
+const isServerFsEnabled = !!mediaRoot;
 
-if (isNasEnabled) {
-    console.log(`NAS mode is enabled. Serving media from root directory: ${mediaRoot}`);
-    if (!nasToken) {
-        console.warn('Warning: NAS mode is enabled, but no token is set. File access is not secure.');
+if (isServerFsEnabled) {
+    console.log(`Server-side file browsing is enabled. Serving media from root directory: ${mediaRoot}`);
+    if (!serverToken) {
+        console.warn('Warning: Server file browsing is enabled, but no token is set. File access is not secure.');
     }
 } else {
-    console.log('NAS mode is disabled. Only local file upload is available.');
+    console.log('Server-side file browsing is disabled. Only local file upload is available.');
 }
 
 // --- Main Application ---
@@ -61,13 +60,13 @@ async function startServer() {
     await fs.mkdir(uploadsDir, { recursive: true });
 
     // --- Auth Middleware ---
-    const authenticateNasRequest = (req, res, next) => {
-        if (!isNasEnabled) {
-            return res.status(503).json({ error: 'NAS mode is not enabled on the server.' });
+    const authenticateRequest = (req, res, next) => {
+        if (!isServerFsEnabled) {
+            return res.status(503).json({ error: 'Server-side file browsing is not enabled on the server.' });
         }
-        if (nasToken) {
-            const token = req.headers['x-nas-token'];
-            if (token !== nasToken) {
+        if (serverToken) {
+            const token = req.headers['x-server-token'];
+            if (token !== serverToken) {
                 return res.status(401).json({ error: 'Unauthorized: Invalid token.' });
             }
         }
@@ -79,10 +78,10 @@ async function startServer() {
 
     // --- API Routes ---
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
-    app.get('/api/status', (req, res) => res.json({ isNasEnabled }));
+    app.get('/api/status', (req, res) => res.json({ isServerFsEnabled }));
 
-    // --- Protected NAS API Routes ---
-    app.get('/api/browse', authenticateNasRequest, async (req, res) => {
+    // --- Protected Server API Routes ---
+    app.get('/api/browse', authenticateRequest, async (req, res) => {
         const currentPath = req.query.path || '';
         const absolutePath = path.join(mediaRoot, currentPath);
         if (!path.normalize(absolutePath).startsWith(mediaRoot)) return res.status(403).json({ error: 'Access Forbidden' });
@@ -93,7 +92,7 @@ async function startServer() {
         } catch (e) { res.status(500).json({ error: 'Failed to browse directory.' }); }
     });
 
-    app.get('/api/stream', authenticateNasRequest, (req, res) => {
+    app.get('/api/stream', authenticateRequest, (req, res) => {
         const filePath = req.query.path;
         if (!filePath) return res.status(400).send('File path is required.');
         const absolutePath = path.join(mediaRoot, filePath);
@@ -112,7 +111,7 @@ async function startServer() {
         } catch (e) { res.status(404).send('File not found.'); }
     });
 
-    app.get('/api/subtitle', authenticateNasRequest, async (req, res) => {
+    app.get('/api/subtitle', authenticateRequest, async (req, res) => {
         const filePath = req.query.path;
         if (!filePath) return res.status(400).send('File path is required.');
         const absolutePath = path.join(mediaRoot, filePath);

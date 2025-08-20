@@ -40,10 +40,10 @@
     <div class="left-panel">
         <h1 style="flex-shrink: 0;">字幕时间轴调整工具</h1>
         <div class="section">
-            <h2>NAS 设置 (可选)</h2>
+            <h2>服务器设置 (可选)</h2>
             <div class="adjustment-controls">
-                <label for="nasTokenInput">访问 Token:</label>
-                <input type="password" id="nasTokenInput" placeholder="如果服务器设置了 Token" style="flex-grow: 1;">
+                <label for="serverTokenInput">访问 Token:</label>
+                <input type="password" id="serverTokenInput" placeholder="如果服务器设置了 Token" style="flex-grow: 1;">
             </div>
         </div>
         <div class="section file-list-section">
@@ -102,9 +102,9 @@
         <div id="modalSourceSelection" class="modal-body">
             <button onclick="fileUploader.click()" class="source-button">从本地上传</button>
             <input type="file" id="fileUploader" style="display: none;" multiple/>
-            <button id="browseNasBtn" onclick="showNasBrowser()" class="source-button" disabled>从 NAS 浏览</button>
+            <button id="browseServerBtn" onclick="showServerBrowser()" class="source-button" disabled>从服务器浏览</button>
         </div>
-        <div id="modalNasBrowser" class="modal-body" style="display: none;">
+        <div id="modalServerBrowser" class="modal-body" style="display: none;">
              <div class="list-header"><span id="current-path">/</span><button onclick="browseDirectory('')">返回根目录</button></div>
              <div id="fileBrowser" class="file-browser"></div>
         </div>
@@ -114,12 +114,12 @@
   <script>
     // --- State & DOM Elements ---
     let videoList = [], subtitleList = [], activeVideo = null, activeSubtitle = null, originalSubtitleData = null, activeSubtitleData = null, modalFileType = 'video';
-    const dom = { videoPlayer: document.getElementById('videoPlayer'), statusEl: document.getElementById('status'), modal: document.getElementById('addFileModal'), modalTitle: document.getElementById('modalTitle'), modalSourceSelection: document.getElementById('modalSourceSelection'), modalNasBrowser: document.getElementById('modalNasBrowser'), fileUploader: document.getElementById('fileUploader'), fileBrowserEl: document.getElementById('fileBrowser'), currentPathEl: document.getElementById('current-path'), browseNasBtn: document.getElementById('browseNasBtn'), nasTokenInput: document.getElementById('nasTokenInput'), playbackRateInput: document.getElementById('playbackRateInput'), timeAdjustmentInput: document.getElementById('timeAdjustment') };
+    const dom = { videoPlayer: document.getElementById('videoPlayer'), statusEl: document.getElementById('status'), modal: document.getElementById('addFileModal'), modalTitle: document.getElementById('modalTitle'), modalSourceSelection: document.getElementById('modalSourceSelection'), modalServerBrowser: document.getElementById('modalServerBrowser'), fileUploader: document.getElementById('fileUploader'), fileBrowserEl: document.getElementById('fileBrowser'), currentPathEl: document.getElementById('current-path'), browseServerBtn: document.getElementById('browseServerBtn'), serverTokenInput: document.getElementById('serverTokenInput'), playbackRateInput: document.getElementById('playbackRateInput'), timeAdjustmentInput: document.getElementById('timeAdjustment') };
 
     // --- Modal & File Addition Logic ---
-    function openAddFileModal() { dom.modal.style.display = 'flex'; dom.modalSourceSelection.style.display = 'block'; dom.modalNasBrowser.style.display = 'none'; }
+    function openAddFileModal() { dom.modal.style.display = 'flex'; dom.modalSourceSelection.style.display = 'block'; dom.modalServerBrowser.style.display = 'none'; }
     function closeModal() { dom.modal.style.display = 'none'; }
-    function showNasBrowser() { dom.modalSourceSelection.style.display = 'none'; dom.modalNasBrowser.style.display = 'flex'; browseDirectory(); }
+    function showServerBrowser() { dom.modalSourceSelection.style.display = 'none'; dom.modalServerBrowser.style.display = 'flex'; browseDirectory(); }
     dom.fileUploader.onchange = (e) => { addFiles(e.target.files, 'local'); };
 
     function addFiles(files, source, pathPrefix = '') {
@@ -146,21 +146,21 @@
         });
     }
 
-    // --- NAS Browser Logic ---
+    // --- Server Browser Logic ---
     async function browseDirectory(path = '') {
         try {
-            const response = await fetch(`/api/browse?path=${encodeURIComponent(path)}`, { headers: { 'X-NAS-Token': dom.nasTokenInput.value } });
+            const response = await fetch(`/api/browse?path=${encodeURIComponent(path)}`, { headers: { 'X-Server-Token': dom.serverTokenInput.value } });
             if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
             const data = await response.json();
             dom.currentPathEl.textContent = `/${data.path}`;
-            renderNasBrowser(data.path, data.files);
+            renderServerBrowser(data.path, data.files);
         } catch (error) { dom.fileBrowserEl.innerHTML = `<p style="color: red;">无法加载目录: ${error.message}</p>`; }
     }
 
-    function renderNasBrowser(currentNasPath, files) {
+    function renderServerBrowser(currentServerPath, files) {
         dom.fileBrowserEl.innerHTML = '';
-        if (currentNasPath) {
-            const parentPath = currentNasPath.substring(0, currentNasPath.lastIndexOf('/'));
+        if (currentServerPath) {
+            const parentPath = currentServerPath.substring(0, currentServerPath.lastIndexOf('/'));
             const upEl = document.createElement('div');
             upEl.className = 'file-item';
             upEl.textContent = '⬆️ [返回上级]';
@@ -172,9 +172,9 @@
             itemEl.className = 'file-item';
             itemEl.textContent = `${file.type === 'directory' ? 'ðŸ“‚' : 'ðŸ“„'} ${file.name}`;
             if (file.type === 'directory') {
-                itemEl.onclick = () => browseDirectory(currentNasPath ? `${currentNasPath}/${file.name}` : file.name);
+                itemEl.onclick = () => browseDirectory(currentServerPath ? `${currentServerPath}/${file.name}` : file.name);
             } else {
-                itemEl.onclick = () => addFiles([file], 'nas', currentNasPath);
+                itemEl.onclick = () => addFiles([file], 'server', currentServerPath);
             }
             dom.fileBrowserEl.appendChild(itemEl);
         });
@@ -222,11 +222,11 @@
     // --- Player and Adjustment Actions ---
     async function loadFilesToPlayer() {
         if (!activeVideo) return alert('请在列表中选择一个视频文件');
-        dom.videoPlayer.src = activeVideo.source === 'local' ? URL.createObjectURL(activeVideo.file) : `/api/stream?path=${encodeURIComponent(activeVideo.path)}&token=${dom.nasTokenInput.value}`;
+        dom.videoPlayer.src = activeVideo.source === 'local' ? URL.createObjectURL(activeVideo.file) : `/api/stream?path=${encodeURIComponent(activeVideo.path)}&token=${dom.serverTokenInput.value}`;
         originalSubtitleData = activeSubtitleData = null;
         if (activeSubtitle) {
             try {
-                let text = activeSubtitle.source === 'local' ? await activeSubtitle.file.text() : await (await fetch(`/api/subtitle?path=${encodeURIComponent(activeSubtitle.path)}`, { headers: { 'X-NAS-Token': dom.nasTokenInput.value } })).text();
+                let text = activeSubtitle.source === 'local' ? await activeSubtitle.file.text() : await (await fetch(`/api/subtitle?path=${encodeURIComponent(activeSubtitle.path)}`, { headers: { 'X-Server-Token': dom.serverTokenInput.value } })).text();
                 const parsedData = parseSubtitle(text, activeSubtitle.name);
                 originalSubtitleData = JSON.parse(JSON.stringify(parsedData));
                 activeSubtitleData = JSON.parse(JSON.stringify(parsedData));
@@ -239,7 +239,7 @@
         if (!activeSubtitle) return alert('请选择一个要保存的字幕文件');
         let totalOffset = (originalSubtitleData && activeSubtitleData) ? (activeSubtitleData[0].start - originalSubtitleData[0].start) : getManualTimeAdjustment();
         try {
-            let fileToUpload = activeSubtitle.source === 'local' ? activeSubtitle.file : new File([await (await fetch(`/api/subtitle?path=${encodeURIComponent(activeSubtitle.path)}`, { headers: { 'X-NAS-Token': dom.nasTokenInput.value } })).text()], activeSubtitle.name);
+            let fileToUpload = activeSubtitle.source === 'local' ? activeSubtitle.file : new File([await (await fetch(`/api/subtitle?path=${encodeURIComponent(activeSubtitle.path)}`, { headers: { 'X-Server-Token': dom.serverTokenInput.value } })).text()], activeSubtitle.name);
             const formData = new FormData();
             formData.append('timeAdjustment', totalOffset);
             formData.append('subtitles', fileToUpload);
@@ -279,13 +279,13 @@
         try {
             const response = await fetch('/api/status');
             const data = await response.json();
-            if (data.isNasEnabled) {
-                dom.browseNasBtn.disabled = false;
-                dom.browseNasBtn.title = '浏览服务器上的文件';
+            if (data.isServerFsEnabled) {
+                dom.browseServerBtn.disabled = false;
+                dom.browseServerBtn.title = '浏览服务器上的文件';
             } else {
-                dom.browseNasBtn.title = '服务器未配置媒体目录';
+                dom.browseServerBtn.title = '服务器未配置媒体目录';
             }
-        } catch (e) { dom.browseNasBtn.title = '无法连接到服务器'; }
+        } catch (e) { dom.browseServerBtn.title = '无法连接到服务器'; }
         setupDragDrop();
         updateStatus();
     });
