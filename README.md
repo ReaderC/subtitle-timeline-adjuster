@@ -1,73 +1,75 @@
-# Subtitle Timeline Adjuster
+[English Version](./README.en.md)
 
-A lightweight, web-based tool to adjust the timeline of subtitle files (.srt, .ass) with real-time preview.
+# 字幕时间轴调整工具
 
-![Screenshot Placeholder](https://via.placeholder.com/800x450.png?text=App+Screenshot+Here)
-*You can replace the placeholder above with a screenshot or GIF of the application.* 
+一个轻量级的、基于 Web 的工具，用于调整字幕文件（.srt, .ass）的时间轴，并提供实时预览功能。
+
+![应用截图占位符](https://via.placeholder.com/800x450.png?text=此处替换为应用截图)
+*你可以将上面的占位符链接替换为应用的实际截图或 GIF 动图。*
 
 ---
 
-This tool was built to provide a simple, fast, and lightweight solution for shifting subtitle timestamps without relying on heavy video editing software. It uses a pure JavaScript backend, making it cross-platform and easy to run.
+本工具旨在提供一个简单、快速、轻量化的解决方案，用于调整字幕时间戳，而无需依赖笨重的视频编辑软件。它采用纯 JavaScript 后端，使其可以轻松地跨平台运行。
 
-## ✨ Features
+## ✨ 功能特性
 
-- **Real-time Adjustment**: Instantly preview subtitle timing changes in the browser.
-- **Multi-file Support**: Upload and manage multiple video and subtitle files.
-- **Flexible Controls**:
-  - **Quick-step buttons** for fine-tuning (+/- 50ms).
-  - **Manual input** for large adjustments.
-  - **Variable playback speed** for precise synchronization.
-- **Cross-Platform**: Runs on Windows, macOS, and Linux (requires Node.js).
-- **Lightweight**: No `ffmpeg` dependency. All processing is done in JavaScript.
-- **Automatic Cleanup**: Uploaded files are automatically deleted on server shutdown.
+- **实时调整**: 在浏览器中即时预览字幕的时间变化。
+- **多文件支持**: 上传和管理多个视频与字幕文件。
+- **灵活的控制方式**:
+  - **快捷微调按钮** 用于精确调整 (+/- 50ms)。
+  - **手动输入框** 用于大幅度的时间平移。
+  - **可变播放速度** 用于更精确地同步时间轴。
+- **跨平台**: 可在 Windows、macOS 和 Linux 上运行 (需要 Node.js 环境)。
+- **轻量化**: 无 `ffmpeg` 依赖，所有处理均在 JavaScript 中完成。
+- **自动清理**: 上传的文件会在服务器关闭时自动删除。
 
-## 🛠️ Tech Stack
+## 🛠️ 技术栈
 
-- **Backend**: Node.js, Express, Multer
-- **Frontend**: Vanilla JavaScript (HTML5, CSS3)
-- **Subtitle Parsing**: `srt-parser-2`, `ass-parser`, `ass-stringify`
+- **后端**: Node.js, Express, Multer
+- **前端**: 原生 JavaScript (HTML5, CSS3)
+- **字幕解析**: `srt-parser-2`, `ass-parser`, `ass-stringify`
 
-## 🚀 Getting Started
+## 🚀 快速上手
 
-Follow these instructions to get a copy of the project up and running on your local machine.
+请遵循以下说明在你的本地机器上启动并运行项目。
 
-### Prerequisites
+### 环境要求
 
-You must have [Node.js](https://nodejs.org/) (which includes npm) installed on your system.
+你的系统上必须安装有 [Node.js](https://nodejs.org/) (已包含 npm)。
 
-### Installation & Running
+### 安装与运行
 
-1.  **Clone the repository:**
+1.  **克隆仓库:**
     ```bash
     git clone https://github.com/your-username/subtitle-timeline-adjuster.git
     cd subtitle-timeline-adjuster
     ```
 
-2.  **Install dependencies:**
-    Run `npm install` to download all the required libraries from `package.json`.
+2.  **安装依赖:**
+    运行 `npm install` 来下载 `package.json` 中声明的所有必需库。
     ```bash
     npm install
     ```
 
-3.  **Run the server:**
+3.  **运行服务器:**
     ```bash
     node src/server.js
     ```
 
-4.  **Open the application:**
-    Open your web browser and navigate to `http://localhost:3000`.
+4.  **打开应用:**
+    打开你的网络浏览器并访问 `http://localhost:3000`。
 
-## 📝 Usage / Workflow
+## 📝 使用流程
 
-1.  **Upload Files**: Drag and drop video and subtitle files into their respective upload areas on the left.
-2.  **Select Files**: Click on a video and a subtitle from the lists to activate them. The status bar will show your current selection.
-3.  **Load Preview**: Click the **"加载/重置预览"** (Load/Reset Preview) button. The video will load in the player, and the subtitles will be parsed for preview.
-4.  **Adjust Timing**:
-    -   Use the **快捷微调** (Quick-step) buttons (`« -50ms` / `+50ms »`) for small, instant adjustments.
-    -   Use the **手动调整** (Manual Adjustment) input for larger shifts, then click **"应用手动调整"** (Apply Manual Adjustment).
-    -   Change the **播放速度** (Playback Speed) to slow down the video for more precise alignment.
-5.  **Save Subtitle**: Once you are satisfied with the timing, click the **"保存字幕"** (Save Subtitle) button. A download link for the newly adjusted subtitle file will appear in the status area.
+1.  **上传文件**: 将视频和字幕文件拖放到左侧对应的上传区域。
+2.  **选择文件**: 从文件列表中分别点击一个视频和一个字幕来激活它们。状态栏会显示你当前的选择。
+3.  **加载预览**: 点击 **"加载/重置预览"** 按钮。视频将在播放器中加载，同时字幕文件也会被解析用于预览。
+4.  **调整时间**:
+    -   使用 **快捷微调** 按钮 (`« -50ms` / `+50ms »`) 来进行小幅度的、即时的调整。
+    -   使用 **手动调整** 输入框来进行大幅度的平移，然后点击 **"应用手动调整"**。
+    -   改变 **播放速度** 来减慢视频，以便更精确地对齐。
+5.  **保存字幕**: 当你对调整后的时间感到满意时，点击 **"保存字幕"** 按钮。一个新的、已调整好的字幕文件的下载链接将会出现在状态区。
 
-## 📄 License
+## 📄 开源协议
 
-This project is licensed under the ISC License. See the `package.json` file for details.
+本项目采用 ISC 许可证。详情请见 `package.json` 文件。
