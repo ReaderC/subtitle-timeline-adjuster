@@ -3,184 +3,154 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 
-// 将整个应用启动过程包裹在异步函数中
+// --- Configuration Loading ---
+function getConfig() {
+    const configPath = path.join(__dirname, '../config.json');
+    let config = {};
+    // Priority: Environment Variables > config.json
+    try {
+        if (fsSync.existsSync(configPath)) {
+            const rawConfig = fsSync.readFileSync(configPath, 'utf-8');
+            config = JSON.parse(rawConfig);
+        }
+    } catch (error) {
+        console.error('Error reading or parsing config.json:', error);
+        process.exit(1);
+    }
+
+    return {
+        mediaDirectory: process.env.MEDIA_DIR || config.mediaDirectory,
+        nasToken: process.env.NAS_TOKEN || config.nasToken
+    };
+}
+
+const config = getConfig();
+const mediaRoot = config.mediaDirectory ? path.normalize(config.mediaDirectory) : null;
+const nasToken = config.nasToken;
+const isNasEnabled = !!mediaRoot;
+
+if (isNasEnabled) {
+    console.log(`NAS mode is enabled. Serving media from root directory: ${mediaRoot}`);
+    if (!nasToken) {
+        console.warn('Warning: NAS mode is enabled, but no token is set. File access is not secure.');
+    }
+} else {
+    console.log('NAS mode is disabled. Only local file upload is available.');
+}
+
+// --- Main Application ---
 async function startServer() {
-    // --- 动态导入 ESM 模块 ---
     const { default: SrtParser } = await import('srt-parser-2');
     const { default: assParser } = await import('ass-parser');
     const { default: assStringify } = await import('ass-stringify');
 
-    // 初始化Express应用
     const app = express();
     const PORT = process.env.PORT || 3000;
 
-    // 中间件
     app.use(cors());
     app.use(express.json());
     app.use(express.static(path.join(__dirname, '../public')));
     app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-    // 配置文件上传
-    const storage = multer.diskStorage({
-        destination: (req, file, cb) => {
-            const uploadPath = path.join(__dirname, '../uploads');
-            cb(null, uploadPath);
-        },
-        filename: (req, file, cb) => {
-            cb(null, `${Date.now()}-${file.originalname}`);
-        }
-    });
-
+    const storage = multer.diskStorage({ destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads')), filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`) });
     const upload = multer({ storage: storage });
 
-    // 确保uploads目录存在
     const uploadsDir = path.join(__dirname, '../uploads');
-    try {
-        await fs.mkdir(uploadsDir, { recursive: true });
-    } catch (e) {
-        console.error("Could not create uploads directory", e);
-    }
+    await fs.mkdir(uploadsDir, { recursive: true });
 
-    // --- 时间码处理辅助函数 ---
-    function timeToSeconds(timeStr) {
-        const [hms, cs] = timeStr.split('.');
-        const [h, m, s] = hms.split(':').map(Number);
-        return h * 3600 + m * 60 + s + (Number(cs) / 100);
-    }
-
-    function secondsToTime(seconds) {
-        if (seconds < 0) seconds = 0;
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = Math.floor(seconds % 60);
-        const cs = Math.round((seconds - Math.floor(seconds)) * 100);
-        return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')}`;
-    }
-
-    // --- 字幕处理核心函数 ---
-    async function adjustSrt(content, timeAdjustment) {
-        const parser = new SrtParser();
-        const lines = parser.fromSrt(content);
-        lines.forEach(line => {
-            const startTime = parser.toSeconds(line.startTime);
-            const endTime = parser.toSeconds(line.endTime);
-            line.startTime = parser.toSrtTime(startTime + timeAdjustment);
-            line.endTime = parser.toSrtTime(endTime + timeAdjustment);
-        });
-        return parser.toSrt(lines);
-    }
-
-    async function adjustAss(content, timeAdjustment) {
-        const parsed = assParser(content);
-        const events = parsed.find(section => section.key === 'Events');
-        if (events && events.body) {
-            events.body.forEach(item => {
-                if (item.key === 'Dialogue' || item.key === 'Comment') {
-                    const start = timeToSeconds(item.value.Start);
-                    const end = timeToSeconds(item.value.End);
-                    item.value.Start = secondsToTime(start + timeAdjustment);
-                    item.value.End = secondsToTime(end + timeAdjustment);
-                }
-            });
+    // --- Auth Middleware ---
+    const authenticateNasRequest = (req, res, next) => {
+        if (!isNasEnabled) {
+            return res.status(503).json({ error: 'NAS mode is not enabled on the server.' });
         }
-        return assStringify(parsed);
-    }
+        if (nasToken) {
+            const token = req.headers['x-nas-token'];
+            if (token !== nasToken) {
+                return res.status(401).json({ error: 'Unauthorized: Invalid token.' });
+            }
+        }
+        next();
+    };
 
-    // --- API 路由 ---
-    app.get('/', (req, res) => {
-        res.sendFile(path.join(__dirname, '../public/index.html'));
+    // --- Helper Functions (Unchanged) ---
+    function timeToSeconds(t){const[h,c]=t.split('.');const[s,m,d]=h.split(':').map(Number);return 3600*s+60*m+d+Number(c)/100}function secondsToTime(t){t<0&&(t=0);const h=Math.floor(t/3600),c=Math.floor(t%3600/60),s=Math.floor(t%60),d=Math.round(100*(t-Math.floor(t)));return`${h}:${String(c).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(d).padStart(2,"0")}`}async function adjustSrt(t,h){const c=new SrtParser,s=c.fromSrt(t);return s.forEach(t=>{const s=c.toSeconds(t.startTime),d=c.toSeconds(t.endTime);t.startTime=c.toSrtTime(s+h),t.endTime=c.toSrtTime(d+h)}),c.toSrt(s)}async function adjustAss(t,h){const c=assParser(t),s=c.find(t=>"Events"===t.key);return s&&s.body&&s.body.forEach(t=>{if("Dialogue"===t.key||"Comment"===t.key){const c=timeToSeconds(t.value.Start),s=timeToSeconds(t.value.End);t.value.Start=secondsToTime(c+h),t.value.End=secondsToTime(s+h)}}),assStringify(c)}
+
+    // --- API Routes ---
+    app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
+    app.get('/api/status', (req, res) => res.json({ isNasEnabled }));
+
+    // --- Protected NAS API Routes ---
+    app.get('/api/browse', authenticateNasRequest, async (req, res) => {
+        const currentPath = req.query.path || '';
+        const absolutePath = path.join(mediaRoot, currentPath);
+        if (!path.normalize(absolutePath).startsWith(mediaRoot)) return res.status(403).json({ error: 'Access Forbidden' });
+        try {
+            const dirents = await fs.readdir(absolutePath, { withFileTypes: true });
+            const files = dirents.map(d => ({ name: d.name, type: d.isDirectory() ? 'directory' : 'file' })).sort((a,b) => (a.type===b.type) ? a.name.localeCompare(b.name) : a.type==='directory'?-1:1);
+            res.json({ path: currentPath, files });
+        } catch (e) { res.status(500).json({ error: 'Failed to browse directory.' }); }
     });
 
+    app.get('/api/stream', authenticateNasRequest, (req, res) => {
+        const filePath = req.query.path;
+        if (!filePath) return res.status(400).send('File path is required.');
+        const absolutePath = path.join(mediaRoot, filePath);
+        if (!path.normalize(absolutePath).startsWith(mediaRoot)) return res.status(403).send('Access Forbidden');
+        try {
+            const stat = fsSync.statSync(absolutePath);
+            const fileSize = stat.size, range = req.headers.range;
+            if (range) {
+                const parts = range.replace(/bytes=/, "").split("-"), start = parseInt(parts[0], 10), end = parts[1]?parseInt(parts[1],10):fileSize-1, chunksize=(end-start)+1, file=fsSync.createReadStream(absolutePath,{start,end});
+                res.writeHead(206, {'Content-Range':`bytes ${start}-${end}/${fileSize}`,'Accept-Ranges':'bytes','Content-Length':chunksize,'Content-Type':'video/mp4'});
+                file.pipe(res);
+            } else {
+                res.writeHead(200, {'Content-Length':fileSize,'Content-Type':'video/mp4'});
+                fsSync.createReadStream(absolutePath).pipe(res);
+            }
+        } catch (e) { res.status(404).send('File not found.'); }
+    });
+
+    app.get('/api/subtitle', authenticateNasRequest, async (req, res) => {
+        const filePath = req.query.path;
+        if (!filePath) return res.status(400).send('File path is required.');
+        const absolutePath = path.join(mediaRoot, filePath);
+        if (!path.normalize(absolutePath).startsWith(mediaRoot)) return res.status(403).send('Access Forbidden');
+        try { res.send(await fs.readFile(absolutePath, 'utf-8')); } catch (e) { res.status(500).send('Error reading subtitle file.'); }
+    });
+
+    // --- Existing Upload Route (for saving adjusted files) ---
     app.post('/batch-adjust-timeline', upload.any(), async (req, res) => {
         const timeAdjustment = parseFloat(req.body.timeAdjustment);
-        if (isNaN(timeAdjustment)) {
-            return res.status(400).json({ error: 'Invalid time adjustment value' });
-        }
-
+        if (isNaN(timeAdjustment)) return res.status(400).json({ error: 'Invalid time adjustment value' });
         const subtitleFiles = req.files.filter(f => f.fieldname !== 'videos');
-        if (subtitleFiles.length === 0) {
-            return res.status(400).json({ error: 'No subtitle files provided.' });
-        }
-
+        if (subtitleFiles.length === 0) return res.status(400).json({ error: 'No subtitle files provided.' });
         const promises = subtitleFiles.map(async (file) => {
-            try {
-                const content = await fs.readFile(file.path, 'utf-8');
-                const ext = path.extname(file.originalname).toLowerCase();
-                let adjustedContent;
-
-                if (ext === '.srt') {
-                    adjustedContent = await adjustSrt(content, timeAdjustment);
-                } else if (ext === '.ass') {
-                    adjustedContent = await adjustAss(content, timeAdjustment);
-                } else {
-                    console.warn(`Skipping unsupported file type: ${file.originalname}`);
-                    return null;
-                }
-
-                const adjustedFilePath = file.path.replace(/(\.[^.]*)$/, '-adjusted$1');
-                await fs.writeFile(adjustedFilePath, adjustedContent);
-                return `/uploads/${path.basename(adjustedFilePath)}`;
-            } catch (error) {
-                console.error(`Error processing file ${file.originalname}:`, error);
-                throw new Error(`Failed to process ${file.originalname}`);
-            }
+            const content = await fs.readFile(file.path, 'utf-8');
+            const ext = path.extname(file.originalname).toLowerCase();
+            let adjustedContent = ext === '.srt' ? await adjustSrt(content, timeAdjustment) : await adjustAss(content, timeAdjustment);
+            const adjustedFilePath = file.path.replace(/(\.[^.]*)$/, '-adjusted$1');
+            await fs.writeFile(adjustedFilePath, adjustedContent);
+            return `/uploads/${path.basename(adjustedFilePath)}`;
         });
-
-        try {
-            const downloadLinks = (await Promise.all(promises)).filter(Boolean);
-            res.json({ downloadLinks });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+        try { res.json({ downloadLinks: (await Promise.all(promises)).filter(Boolean) }); } catch (e) { res.status(500).json({ error: e.message }); }
     });
 
-    app.get('/download/:filename', (req, res) => {
-        const filename = req.params.filename;
-        const filePath = path.join(__dirname, '../uploads', filename);
-        res.download(filePath, (err) => {
-            if (err) {
-                console.error("Download error:", err);
-                res.status(404).send('File not found or download error.');
-            }
-        });
-    });
-
-    // --- 服务器启动和清理 ---
-    const server = app.listen(PORT, () => {
-        console.log(`Server is running on http://localhost:${PORT}`);
-    });
-
+    // --- Server Lifecycle ---
+    const server = app.listen(PORT, () => console.log(`Server is running on http://localhost:${PORT}`));
     async function cleanupUploads() {
         try {
             const files = await fs.readdir(uploadsDir);
-            const unlinkPromises = files.map(file => {
-                if (file !== '.gitkeep') {
-                    return fs.unlink(path.join(uploadsDir, file));
-                }
-                return Promise.resolve();
-            });
-            await Promise.all(unlinkPromises);
+            await Promise.all(files.map(file => fs.unlink(path.join(uploadsDir, file)).catch(err => console.error(err))));
             console.log('Uploads directory cleaned.');
-        } catch (err) {
-            console.error('Error cleaning up uploads directory:', err);
-        }
+        } catch (err) { console.error('Error cleaning up uploads directory:', err); }
     }
-
-    const cleanupAndExit = async () => {
-        console.log('Server shutting down. Cleaning up uploads...');
-        await cleanupUploads();
-        server.close(() => {
-            console.log('Server closed.');
-            process.exit(0);
-        });
-    };
-
+    const cleanupAndExit = async () => { console.log('Server shutting down...'); await cleanupUploads(); server.close(() => { console.log('Server closed.'); process.exit(0); }); };
     process.on('SIGINT', cleanupAndExit);
     process.on('SIGTERM', cleanupAndExit);
 }
 
-// 启动服务器
 startServer().catch(err => {
     console.error('Failed to start server:', err);
     process.exit(1);

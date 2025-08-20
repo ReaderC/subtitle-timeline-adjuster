@@ -1,0 +1,4 @@
+{
+  "mediaDirectory": "/path/to/your/media/folder",
+  "nasToken": "a-very-secret-token"
+}

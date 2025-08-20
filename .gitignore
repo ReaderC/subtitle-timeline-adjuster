@@ -1,6 +1,10 @@
 # Dependencies
 /node_modules
 
+# User Config
+# This file contains user-specific paths and should not be committed.
+config.json
+
 # Temporary Uploads
 # The /uploads directory is created automatically by the server if it does not exist.
 # It is cleaned upon server shutdown. It should not be tracked by Git.
