@@ -57,7 +57,7 @@ The project supports two modes, controlled by a configuration file.
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/subtitle-timeline-adjuster.git
+    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
     cd subtitle-timeline-adjuster
     ```
 

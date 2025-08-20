@@ -57,7 +57,7 @@
 
 1.  **克隆仓库:**
     ```bash
-    git clone https://github.com/your-username/subtitle-timeline-adjuster.git
+    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
     cd subtitle-timeline-adjuster
     ```
 
