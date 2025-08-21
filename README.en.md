@@ -18,6 +18,11 @@ A simple yet powerful online tool to adjust the timeline of subtitle files (`.sr
   - (Optional) Supports browsing and loading files from the server.
 - **Save and Download**: Once you're done, easily save and download the modified subtitle file.
 
+## 📸 Screenshots
+
+![Screenshot 1](assets/应用截图.png)
+![Screenshot 2](assets/应用截图2.png)
+
 ## 🚀 Quick Start (Development Mode)
 
 1.  **Clone the repository**
