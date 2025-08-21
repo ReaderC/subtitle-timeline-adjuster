@@ -18,7 +18,6 @@ function getConfig() {
         console.error('Error reading or parsing config.json:', error);
         process.exit(1);
     }
-
     return {
         mediaDirectory: process.env.MEDIA_DIR || config.mediaDirectory,
         serverToken: process.env.SERVER_TOKEN || config.serverToken
@@ -41,20 +40,13 @@ if (isServerFsEnabled) {
 
 // --- Main Application ---
 async function startServer() {
-    const { default: SrtParser } = await import('srt-parser-2');
-    const { default: assParser } = await import('ass-parser');
-    const { default: assStringify } = await import('ass-stringify');
-
     const app = express();
     const PORT = process.env.PORT || 3000;
 
     app.use(cors());
-    app.use(express.json());
+    app.use(express.json({ limit: '50mb' })); // Increase limit for receiving file content
     app.use(express.static(path.join(__dirname, '../public')));
     app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-    const storage = multer.diskStorage({ destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads')), filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`) });
-    const upload = multer({ storage: storage });
 
     const uploadsDir = path.join(__dirname, '../uploads');
     await fs.mkdir(uploadsDir, { recursive: true });
@@ -72,9 +64,6 @@ async function startServer() {
         }
         next();
     };
-
-    // --- Helper Functions (Unchanged) ---
-    function timeToSeconds(t){const[h,c]=t.split('.');const[s,m,d]=h.split(':').map(Number);return 3600*s+60*m+d+Number(c)/100}function secondsToTime(t){t<0&&(t=0);const h=Math.floor(t/3600),c=Math.floor(t%3600/60),s=Math.floor(t%60),d=Math.round(100*(t-Math.floor(t)));return`${h}:${String(c).padStart(2,"0")}:${String(s).padStart(2,"0")}.${String(d).padStart(2,"0")}`}async function adjustSrt(t,h){const c=new SrtParser,s=c.fromSrt(t);return s.forEach(t=>{const s=c.toSeconds(t.startTime),d=c.toSeconds(t.endTime);t.startTime=c.toSrtTime(s+h),t.endTime=c.toSrtTime(d+h)}),c.toSrt(s)}async function adjustAss(t,h){const c=assParser(t),s=c.find(t=>"Events"===t.key);return s&&s.body&&s.body.forEach(t=>{if("Dialogue"===t.key||"Comment"===t.key){const c=timeToSeconds(t.value.Start),s=timeToSeconds(t.value.End);t.value.Start=secondsToTime(c+h),t.value.End=secondsToTime(s+h)}}),assStringify(c)}
 
     // --- API Routes ---
     app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
@@ -119,21 +108,22 @@ async function startServer() {
         try { res.send(await fs.readFile(absolutePath, 'utf-8')); } catch (e) { res.status(500).send('Error reading subtitle file.'); }
     });
 
-    // --- Existing Upload Route (for saving adjusted files) ---
-    app.post('/batch-adjust-timeline', upload.any(), async (req, res) => {
-        const timeAdjustment = parseFloat(req.body.timeAdjustment);
-        if (isNaN(timeAdjustment)) return res.status(400).json({ error: 'Invalid time adjustment value' });
-        const subtitleFiles = req.files.filter(f => f.fieldname !== 'videos');
-        if (subtitleFiles.length === 0) return res.status(400).json({ error: 'No subtitle files provided.' });
-        const promises = subtitleFiles.map(async (file) => {
-            const content = await fs.readFile(file.path, 'utf-8');
-            const ext = path.extname(file.originalname).toLowerCase();
-            let adjustedContent = ext === '.srt' ? await adjustSrt(content, timeAdjustment) : await adjustAss(content, timeAdjustment);
-            const adjustedFilePath = file.path.replace(/(\.[^.]*)$/, '-adjusted$1');
-            await fs.writeFile(adjustedFilePath, adjustedContent);
-            return `/uploads/${path.basename(adjustedFilePath)}`;
-        });
-        try { res.json({ downloadLinks: (await Promise.all(promises)).filter(Boolean) }); } catch (e) { res.status(500).json({ error: e.message }); }
+    // --- NEW: Save Route ---
+    app.post('/api/save', express.text({ limit: '50mb' }), async (req, res) => {
+        const filename = req.query.filename;
+        if (!filename) {
+            return res.status(400).json({ error: 'Filename is required.' });
+        }
+        const safeFilename = path.basename(filename).replace(/(\.[^.]*)$/, '-adjusted$1');
+        const filePath = path.join(uploadsDir, safeFilename);
+
+        try {
+            await fs.writeFile(filePath, req.body);
+            res.json({ downloadLink: `/uploads/${safeFilename}` });
+        } catch (error) {
+            console.error('Error saving file:', error);
+            res.status(500).json({ error: 'Failed to save file.' });
+        }
     });
 
     // --- Server Lifecycle ---

@@ -10,17 +10,13 @@
     .main-container { display: flex; height: 100vh; padding: 10px; gap: 10px; box-sizing: border-box; }
     .left-panel, .right-panel { display: flex; flex-direction: column; gap: 10px; }
     .left-panel { flex: 2; min-width: 0; }
-    .right-panel { flex: 3; min-width: 500px; display: flex; flex-direction: column; height: 100%; }
+    .right-panel { flex: 3; min-width: 500px; }
     .section { border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; background-color: var(--main-bg-color); display: flex; flex-direction: column; }
     .left-panel .section { flex-shrink: 0; }
     .left-panel .file-list-section { flex-grow: 1; min-height: 200px; }
-    .right-panel .player-wrapper { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; }
-    .right-panel .editor-wrapper { flex-shrink: 0; height: 0; overflow: hidden; opacity: 0; transition: height 0.3s ease-out, opacity 0.3s ease-out; }
-    .resizer { height: 10px; background-color: #ddd; cursor: ns-resize; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; opacity: 0; transition: opacity 0.3s ease-out; }
-    .resizer.active { opacity: 1; }
-    .section h2 { margin-top: 0; font-size: 1.1em; flex-shrink: 0; }
-    .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
-    .active-editor-row { background-color: var(--selected-color); }
+    .right-panel .player-wrapper { flex: 2; min-height: 300px; overflow: hidden; }
+    .right-panel .editor-wrapper { flex: 1; min-height: 200px; overflow: hidden; }
+    .section h2, .list-header { display: flex; justify-content: space-between; align-items: center; margin-top: 0; font-size: 1.1em; flex-shrink: 0; }
     .file-list-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     .file-list { border: 1px solid #eee; padding: 8px; overflow-y: auto; background-color: var(--white-color); flex-grow: 1; }
     .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
@@ -33,7 +29,7 @@
     .action-btn { background-color: #4CAF50; color: white; }
     .file-list-item.active { background-color: var(--selected-color); font-weight: bold; }
     video { width: 100%; flex-grow: 1; background-color: var(--dark-bg-color); }
-    #subtitleDisplay { width: 100%; box-sizing: border-box; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px; text-align: center; min-height: 50px; flex-shrink: 0; }
+    #subtitleDisplay { width: 100%; box-sizing: border-box; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px; text-align: center; min-height: 50px; margin-top: 5px; }
     .adjustment-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
     /* Editor Styles */
     #subtitle-editor { flex-grow: 1; overflow-y: auto; border: 1px solid #eee; background: var(--white-color); font-family: monospace; }
@@ -63,8 +59,8 @@
         </div>
         <div class="section file-list-section">
             <div class="list-header"><h2>媒体文件列表</h2><button class="action-btn" onclick="openAddFileModal()">添加文件</button></div>
-            <div id="videoListWrapper" class="file-list-wrapper" style="margin-top:10px;"><div class="list-header"><h4>视频</h4><button class="delete-btn" onclick="clearFileList('video')">清空</button></div><div id="videoList" class="file-list file-drop-area"></div></div>
-            <div id="subtitleListWrapper" class="file-list-wrapper" style="margin-top:10px;"><div class="list-header"><h4>字幕</h4><button class="delete-btn" onclick="clearFileList('subtitle')">清空</button></div><div id="subtitleList" class="file-list file-drop-area"></div></div>
+            <div id="videoListWrapper" style="margin-top:10px;"><div class="list-header"><h4>视频</h4><button class="delete-btn" onclick="clearFileList('video')">清空</button></div><div id="videoList" class="file-list file-drop-area"></div></div>
+            <div id="subtitleListWrapper" style="margin-top:10px;"><div class="list-header"><h4>字幕</h4><button class="delete-btn" onclick="clearFileList('subtitle')">清空</button></div><div id="subtitleList" class="file-list file-drop-area"></div></div>
             <div id="status" style="margin-top: 10px; flex-shrink: 0;"></div>
         </div>
     </div>
@@ -76,8 +72,7 @@
             <video id="videoPlayer" controls></video>
             <div id="subtitleDisplay"></div>
         </div>
-        <div id="editor-resizer" class="resizer"></div>
-                <div class="section editor-wrapper"><div class="editor-header"><h2 id="editor-title">字幕编辑器 (请先加载字幕)</h2><button id="closeEditorBtn" style="font-size:1.5em;background:none;border:none;cursor:pointer;">&times;</button></div><div id="subtitle-editor"></div></div>
+        <div class="section editor-wrapper"><h2 id="editor-title">字幕编辑器 (请先加载字幕)</h2><div id="subtitle-editor"></div></div>
     </div>
   </div>
 
@@ -86,7 +81,7 @@
   <script>
     // --- State & DOM Elements ---
     let videoList = [], subtitleList = [], activeVideo = null, activeSubtitle = null, originalSubtitleData = null, activeSubtitleData = null, modalFileType = 'video';
-    const dom = { videoPlayer: document.getElementById('videoPlayer'), statusEl: document.getElementById('status'), modal: document.getElementById('addFileModal'), modalTitle: document.getElementById('modalTitle'), modalSourceSelection: document.getElementById('modalSourceSelection'), modalServerBrowser: document.getElementById('modalServerBrowser'), fileUploader: document.getElementById('fileUploader'), fileBrowserEl: document.getElementById('fileBrowser'), currentPathEl: document.getElementById('current-path'), browseServerBtn: document.getElementById('browseServerBtn'), serverTokenInput: document.getElementById('serverTokenInput'), playbackRateInput: document.getElementById('playbackRateInput'), subtitleEditor: document.getElementById('subtitle-editor'), editorTitle: document.getElementById('editor-title'), editorResizer: document.getElementById('editor-resizer'), playerWrapper: document.querySelector('.player-wrapper'), editorWrapper: document.querySelector('.editor-wrapper'), rightPanel: document.querySelector('.right-panel'), subtitleDisplay: document.getElementById('subtitleDisplay'), closeEditorBtn: document.getElementById('closeEditorBtn') };
+    const dom = { videoPlayer: document.getElementById('videoPlayer'), statusEl: document.getElementById('status'), modal: document.getElementById('addFileModal'), modalTitle: document.getElementById('modalTitle'), modalSourceSelection: document.getElementById('modalSourceSelection'), modalServerBrowser: document.getElementById('modalServerBrowser'), fileUploader: document.getElementById('fileUploader'), fileBrowserEl: document.getElementById('fileBrowser'), currentPathEl: document.getElementById('current-path'), browseServerBtn: document.getElementById('browseServerBtn'), serverTokenInput: document.getElementById('serverTokenInput'), playbackRateInput: document.getElementById('playbackRateInput'), subtitleEditor: document.getElementById('subtitle-editor'), editorTitle: document.getElementById('editor-title') };
 
     // --- Modal & File Addition Logic ---
     function openAddFileModal() { dom.modal.style.display = 'flex'; dom.modalSourceSelection.style.display = 'block'; dom.modalServerBrowser.style.display = 'none'; }
@@ -234,7 +229,6 @@
         activeSubtitleData.forEach((line, index) => {
             const row = document.createElement('div');
             row.className = 'editor-row';
-            row.dataset.index = index; // Add data-index attribute
             row.innerHTML = `
                 <div class="editor-index">${line.id || index + 1}</div>
                 <div class="editor-time-group"><button class="time-adj-btn" onclick="adjustLineTime(${index}, 'start', -0.05)">-</button><input type="text" value="${line.startTime}" onchange="updateLineTime(${index}, 'start', this.value)"><button class="time-adj-btn" onclick="adjustLineTime(${index}, 'start', 0.05)">+</button></div>
@@ -307,120 +301,13 @@
       if (!forceUpdate && animationFrameId) cancelAnimationFrame(animationFrameId);
       const currentTime = dom.videoPlayer.currentTime;
       let currentSubtitle = '';
-      if (activeSubtitleData) {
-        const isSrt = activeSubtitle.name.endsWith('.srt');
-        for (const subtitle of activeSubtitleData) {
-          const startInSeconds = isSrt ? srtTimeToSeconds(subtitle.startTime) : timeToSeconds(subtitle.startTime);
-          const endInSeconds = isSrt ? srtTimeToSeconds(subtitle.endTime) : timeToSeconds(subtitle.endTime);
-          if (currentTime >= startInSeconds && currentTime <= endInSeconds) {
-            currentSubtitle = subtitle.text;
-            break;
-          }
-        }
-      }
-      let animationFrameId = null, currentDisplayedSubtitleIndex = -1;
-    function displaySubtitle(forceUpdate = false) {
-      if (!forceUpdate && animationFrameId) cancelAnimationFrame(animationFrameId);
-      const currentTime = dom.videoPlayer.currentTime;
-      let currentSubtitle = '';
-      currentDisplayedSubtitleIndex = -1; // Reset index
-      if (activeSubtitleData) {
-        const isSrt = activeSubtitle.name.endsWith('.srt');
-        for (let i = 0; i < activeSubtitleData.length; i++) {
-          const subtitle = activeSubtitleData[i];
-          const startInSeconds = isSrt ? srtTimeToSeconds(subtitle.startTime) : timeToSeconds(subtitle.startTime);
-          const endInSeconds = isSrt ? srtTimeToSeconds(subtitle.endTime) : timeToSeconds(subtitle.endTime);
-          if (currentTime >= startInSeconds && currentTime <= endInSeconds) {
-            currentSubtitle = subtitle.text;
-            currentDisplayedSubtitleIndex = i; // Store the index
-            break;
-          }
-        }
-      }
-      dom.subtitleDisplay.textContent = currentSubtitle;
+      if (activeSubtitleData) { for (const subtitle of activeSubtitleData) { if (currentTime >= subtitle.start && currentTime <= subtitle.end) { currentSubtitle = subtitle.text; break; } } }
+      document.getElementById('subtitleDisplay').textContent = currentSubtitle;
       if (!dom.videoPlayer.paused) animationFrameId = requestAnimationFrame(() => displaySubtitle(false));
     }
     dom.videoPlayer.addEventListener('play', () => displaySubtitle(false));
     dom.videoPlayer.addEventListener('seeking', () => displaySubtitle(true));
     dom.videoPlayer.addEventListener('pause', () => cancelAnimationFrame(animationFrameId));
-
-    // --- Editor Jump & Visibility Logic ---
-    function jumpToEditorLine(index) {
-        if (index < 0 || !activeSubtitleData || index >= activeSubtitleData.length) return;
-
-        // Show editor if hidden
-        dom.editorWrapper.style.height = '200px'; // Or a default height
-        dom.editorWrapper.style.opacity = '1';
-        dom.editorResizer.classList.add('active');
-
-        const targetRow = dom.subtitleEditor.querySelector(`[data-index="${index}"]`);
-        if (targetRow) {
-            // Remove active class from previous row
-            const prevActive = dom.subtitleEditor.querySelector('.active-editor-row');
-            if (prevActive) prevActive.classList.remove('active-editor-row');
-
-            // Add active class to current row
-            targetRow.classList.add('active-editor-row');
-
-            // Scroll into view
-            targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }
-
-    dom.subtitleDisplay.addEventListener('click', () => {
-        if (currentDisplayedSubtitleIndex !== -1) {
-            jumpToEditorLine(currentDisplayedSubtitleIndex);
-            dom.videoPlayer.pause(); // Pause the video
-        }
-    });
-
-    function closeEditor() {
-        dom.editorWrapper.style.height = '0px';
-        dom.editorWrapper.style.opacity = '0';
-        dom.editorResizer.classList.remove('active');
-        // Remove active class from any highlighted row
-        const prevActive = dom.subtitleEditor.querySelector('.active-editor-row');
-        if (prevActive) prevActive.classList.remove('active-editor-row');
-    }
-
-    dom.closeEditorBtn.addEventListener('click', closeEditor);
-
-    // --- Resizer Logic ---
-    function setupResizer() {
-        let isResizing = false;
-        let lastY = 0;
-        let initialEditorHeight = 0;
-
-        dom.editorResizer.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            lastY = e.clientY;
-            initialEditorHeight = dom.editorWrapper.offsetHeight;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = 'none'; // Prevent text selection during drag
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            const dy = e.clientY - lastY;
-            let newHeight = initialEditorHeight - dy;
-
-            const minHeight = 50; // Minimum height for the editor
-            const maxHeight = dom.rightPanel.offsetHeight - dom.playerWrapper.offsetHeight - dom.editorResizer.offsetHeight - 20; // Approximate max height
-
-            if (newHeight < minHeight) newHeight = minHeight;
-            if (newHeight > maxHeight) newHeight = maxHeight;
-
-            dom.editorWrapper.style.height = `${newHeight}px`;
-            dom.editorWrapper.style.opacity = '1'; // Ensure opacity is 1 during resize
-            dom.playerWrapper.style.flexGrow = '1'; // Ensure player takes remaining space
-        });
-
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = '';
-        });
-    }
 
     // --- Initial Load ---
     document.addEventListener('DOMContentLoaded', async () => {
@@ -436,70 +323,10 @@
         } catch (e) { dom.browseServerBtn.title = '无法连接到服务器'; }
         setupDragDrop();
         updateStatus();
-        setupResizer(); // Initialize resizer
-    });
-      if (!dom.videoPlayer.paused) animationFrameId = requestAnimationFrame(() => displaySubtitle(false));
-    }
-    dom.videoPlayer.addEventListener('play', () => displaySubtitle(false));
-    dom.videoPlayer.addEventListener('seeking', () => displaySubtitle(true));
-    dom.videoPlayer.addEventListener('pause', () => cancelAnimationFrame(animationFrameId));
-
-    // --- Resizer Logic ---
-    function setupResizer() {
-        let isResizing = false;
-        let lastY = 0;
-        let initialEditorHeight = 0;
-
-        dom.editorResizer.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            lastY = e.clientY;
-            initialEditorHeight = dom.editorWrapper.offsetHeight;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = 'none'; // Prevent text selection during drag
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            const dy = e.clientY - lastY;
-            let newHeight = initialEditorHeight - dy;
-
-            // Ensure editor doesn't go too small or too large
-            const minHeight = 50; // Minimum height for the editor
-            const maxHeight = dom.rightPanel.offsetHeight - dom.playerWrapper.offsetHeight - dom.editorResizer.offsetHeight - 20; // Approximate max height
-
-            if (newHeight < minHeight) newHeight = minHeight;
-            // if (newHeight > maxHeight) newHeight = maxHeight; // This might be tricky with flex-grow on player
-
-            dom.editorWrapper.style.height = `${newHeight}px`;
-            dom.playerWrapper.style.flexGrow = '1'; // Ensure player takes remaining space
-        });
-
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = '';
-        });
-    }
-
-    // --- Initial Load ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            const response = await fetch('/api/status');
-            const data = await response.json();
-            if (data.isServerFsEnabled) {
-                dom.browseServerBtn.disabled = false;
-                dom.browseServerBtn.title = '浏览服务器上的文件';
-            } else {
-                dom.browseServerBtn.title = '服务器未配置媒体目录';
-            }
-        } catch (e) { dom.browseServerBtn.title = '无法连接到服务器'; }
-        setupDragDrop();
-        updateStatus();
-        setupResizer(); // Initialize resizer
     });
 
     // --- PARSING LOGIC ---
-    function parseSubtitle(content, fileName) {
+    function parseSubtitle(content, fileName) { 
         if (fileName.endsWith('.ass') || fileName.endsWith('.ssa')) return parseASSSubtitle(content); 
         if (fileName.endsWith('.srt')) return parseSRTSubtitle(content);
         return [];
