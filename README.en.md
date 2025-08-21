@@ -1,71 +1,78 @@
-[中文版](./README.md)
-
 # Subtitle Timeline Adjuster
 
-A lightweight, web-based tool to adjust the timeline of subtitle files (.srt, .ass), supporting both local files and browsing files directly from a server.
-
-![Application Screenshot](./assets/应用截图.png)
-
----
-
-This tool provides a simple, fast, and lightweight solution for shifting subtitle timestamps. It supports two modes: uploading local files, or browsing and streaming files from a pre-configured directory on the server.
+A simple yet powerful online tool to adjust the timeline of subtitle files (`.srt` and `.ass`) to perfectly match your videos.
 
 ## ✨ Features
 
-- **Dual Mode**: Handle local files via upload/drag-drop or browse files on the server.
-- **Server Mode**: Browse and stream media files directly from a directory on the server.
-- **Real-time Adjustment**: Instantly preview subtitle timing changes.
-- **Flexible Controls**: Quick-step buttons, manual input, and variable playback speed.
-- **Token Authentication**: Server mode can be secured with a token.
-- **Cross-Platform**: Runs on Windows, macOS, and Linux (requires Node.js).
-- **Lightweight**: No `ffmpeg` dependency.
+- **Synchronized Video and Subtitle Preview**: Load a video and a subtitle file simultaneously for a real-time preview of your adjustments.
+- **Flexible Timeline Adjustments**:
+  - **Batch Adjustment**: Shift the entire subtitle timeline forward or backward. Supports presets (e.g., 50ms) and custom millisecond input.
+  - **Individual Fine-Tuning**: In the subtitle editor, you can precisely adjust the start and end times for each line.
+- **Powerful Subtitle Editor**:
+  - **Add/Delete Subtitles**: Add new subtitle lines at the video's current time or delete any unwanted lines.
+  - **Text Editing**: Directly edit the subtitle text within the editor.
+  - **Standalone Editing Mode**: Open, edit, and save subtitle files directly without needing to load a video.
+- **Player Controls**: Adjust the video playback speed to help you align subtitles in slow motion.
+- **File Management**:
+  - Supports uploading files from your local machine via file selection or drag-and-drop.
+  - (Optional) Supports browsing and loading files from the server.
+- **Save and Download**: Once you're done, easily save and download the modified subtitle file.
 
-## 🛠️ Tech Stack
+## 🚀 Quick Start (Development Mode)
 
-- **Backend**: Node.js, Express, PM2, Multer
-- **Frontend**: Vanilla JavaScript (HTML5, CSS3)
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/ReaderC/subtitle-timeline-adjuster.git
+    cd subtitle-adjuster
+    ```
 
-## 🚀 Getting Started (Development)
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
 
-1.  **Clone the repo** and `cd` into it.
-2.  **Install dependencies**: `npm install`
-3.  **Configure (Optional)**: To enable server file browsing, create and edit `config.json` as described in the Deployment section.
-4.  **Run the server**: `node src/server.js`
-5.  **Open the app**: Navigate to `http://localhost:3000` in your browser.
-
-## 🚢 Deployment (Production)
-
-Using PM2 for persistent deployment is recommended. The project is pre-configured with the necessary scripts.
-
-1.  **Install & Configure**: Ensure you have cloned the repo, installed dependencies (`npm install`), and configured `config.json` if needed.
-
-2.  **Start the Application**:
+3.  **Start the server**
     ```bash
     npm start
     ```
-    This command uses PM2 to start and daemonize the application. It will be automatically restarted on crash or server reboot.
+    The server will be running at `http://localhost:3000`.
 
-3.  **Setup Startup Hook (One-time command)**:
-    To enable PM2 to launch on boot, you need to run a one-time setup command:
+## 🚢 Deployment (Production Environment)
+
+1.  **Configuration**:
+    - Copy `config.example.json` and rename it to `config.json`.
+    - **`media_dir`**: (Optional) Set a directory path, e.g., `"C:/Users/YourUser/Videos"`. This enables the "Browse Server" feature, allowing you to access media files from that directory.
+    - **`server_token`**: (Optional) Set a password. If set, users will need to enter this token in the "Server Settings" on the front end to access server files or save files.
+
+2.  **Running**:
+    It is recommended to use `pm2` or another process manager to keep the application running in the background.
     ```bash
-    pm2 startup
+    npm install pm2 -g
+    pm2 start src/server.js --name subtitle-adjuster
     ```
-    - This will generate another command. **You must copy and paste the command it gives you** to finalize the setup (it may require `sudo` on Linux/macOS).
-    - Finally, run `pm2 save` to freeze the current process list for reboot.
 
-4.  **Manage the Application**:
-    - `npm stop`: Stop the application.
-    - `npm run restart`: Restart the application.
-    - `npm run logs`: View application logs.
-    - `npm run monit`: Open the performance monitor.
-    - `npm run delete`: Remove the app from PM2's management.
+## 📝 Usage Workflow
 
-## 📝 Usage / Workflow
+1.  **Add Files**:
+    - Click the "Add File" button to select your video and subtitle files from your local machine.
+    - Alternatively, drag and drop the files into the file list area.
+2.  **Select Files**: In the "Video" and "Subtitle" lists on the left, click to select the files you want to work with (selected files will be highlighted).
+3.  **Load and Edit**:
+    - **Synchronized Preview Mode**: After selecting a video and a subtitle, click the "Load/Reset Preview" button. The video and subtitles will be loaded into the player, and the subtitle editor will expand below.
+    - **Standalone Editing Mode**: Select only a subtitle file, then click the "Edit Subtitle Only" button. The editor will open directly, without a video.
+4.  **Adjust and Edit**:
+    - **Batch Adjustments**: Use the controls in the "Subtitle Timeline Batch Adjustment" card to shift all subtitles forward or backward.
+    - **Fine-grained Editing**: In the subtitle editor, you can:
+        - Click the `+` / `-` buttons next to the time fields to make small adjustments.
+        - Directly modify the time or text content.
+        - Click the "Add Subtitle" button to add a new line.
+        - Click the "Delete" button to remove a line.
+5.  **Save File**:
+    - Click the "Save Subtitle" button.
+    - Click the generated download link to get your adjusted subtitle file.
 
-1.  **(Server Mode)** If you configured a token, enter it in the "Server Settings" section.
-2.  **Add Files**: Click "Add File" and choose to upload from your computer or browse from the server.
-3.  **Adjust & Save**: Select files from the list to load them, use the controls on the right to adjust, and click "Save Subtitle" when done.
+## 🛠️ Tech Stack
 
-## 📄 License
-
-This project is licensed under the ISC License.
+- **Frontend**: HTML, CSS, JavaScript (Vanilla)
+- **UI Framework**: Bootstrap 5
+- **Backend**: Node.js, Express

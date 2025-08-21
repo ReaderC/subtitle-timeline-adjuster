@@ -4,94 +4,231 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>字幕时间轴调整工具</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
-    :root { --main-bg-color: #f9f9f9; --border-color: #ccc; --selected-color: #e0ffe0; --white-color: #fff; --dark-bg-color: #000; }
-    html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; overflow: hidden; }
-    .main-container { display: flex; height: 100vh; padding: 10px; gap: 10px; box-sizing: border-box; }
-    .left-panel, .right-panel { display: flex; flex-direction: column; gap: 10px; }
-    .left-panel { flex: 2; min-width: 0; }
-    .right-panel { flex: 3; min-width: 500px; display: flex; flex-direction: column; height: 100%; }
-    .section { border: 1px solid var(--border-color); padding: 15px; border-radius: 5px; background-color: var(--main-bg-color); display: flex; flex-direction: column; }
-    .left-panel .section { flex-shrink: 0; }
-    .left-panel .file-list-section { flex-grow: 1; min-height: 200px; }
-    .right-panel .player-wrapper { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; }
-    .right-panel .editor-wrapper { flex-shrink: 0; height: 0; overflow: hidden; opacity: 0; transition: height 0.3s ease-out, opacity 0.3s ease-out; }
-    .resizer { height: 10px; background-color: #ddd; cursor: ns-resize; border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; opacity: 0; transition: opacity 0.3s ease-out; }
-    .resizer.active { opacity: 1; }
-    .section h2 { margin-top: 0; font-size: 1.1em; flex-shrink: 0; }
-    .editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
-    .active-editor-row { background-color: var(--selected-color); }
-    .file-list-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    .file-list { border: 1px solid #eee; padding: 8px; overflow-y: auto; background-color: var(--white-color); flex-grow: 1; }
-    .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: 5px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
-    .file-list-item span { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .file-list-item .file-source { font-size: 0.8em; color: #888; margin-left: 8px; flex-shrink: 0; }
-    .delete-btn, .step-btn, .speed-btn, .action-btn { border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; margin-left: 5px; font-size: 1em; }
-    .delete-btn { background-color: #f44336; color: white; }
-    .step-btn { background-color: #2196F3; color: white; font-weight: bold; }
-    .speed-btn { background-color: #009688; color: white; }
-    .action-btn { background-color: #4CAF50; color: white; }
-    .file-list-item.active { background-color: var(--selected-color); font-weight: bold; }
-    video { width: 100%; flex-grow: 1; background-color: var(--dark-bg-color); }
-    #subtitleDisplay { width: 100%; box-sizing: border-box; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 10px; text-align: center; min-height: 50px; flex-shrink: 0; }
-    .adjustment-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-    /* Editor Styles */
-    #subtitle-editor { flex-grow: 1; overflow-y: auto; border: 1px solid #eee; background: var(--white-color); font-family: monospace; }
+    :root {
+        --bs-body-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        --bs-body-bg: #f0f2f5;
+    }
+    html, body { height: 100%; }
+    .main-container { display: flex; flex-direction: column; height: 100vh; }
+    .main-row { flex-grow: 1; overflow-y: auto; }
+    .panel { display: flex; flex-direction: column; height: 100%; }
+    .card-body-scroll { overflow-y: auto; flex: 1; }
+    .file-list { list-style: none; padding-left: 0; }
+    .file-list-item { display: flex; justify-content: space-between; align-items: center; padding: .4rem .8rem; border: 1px solid #ddd; border-radius: .25rem; margin-bottom: .25rem; cursor: pointer; transition: background-color .2s; }
+    .file-list-item:hover { background-color: #f5f5f5; }
+    .file-list-item.active { background-color: var(--bs-primary); color: white; border-color: var(--bs-primary); }
+    .file-list-item .file-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-list-item .file-source { font-size: .8em; }
+    .file-list-item.active .file-source { color: white; }
+    .video-wrapper { position: relative; width: 100%; background-color: #000; }
+    #videoPlayer { width: 100%; height: auto; max-height: 60vh; }
+    #subtitleDisplay { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); background-color: rgba(0,0,0,0.7); color: white; padding: 5px 15px; border-radius: 5px; text-align: center; width: 90%; min-height: 50px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: background-color .2s; }
+    #subtitleDisplay:hover { background-color: rgba(0,0,0,0.85); }
+    #editor-resizer { height: 10px; background-color: #e0e0e0; cursor: ns-resize; }
+    .editor-wrapper { display: none; /* Initially hidden */ flex-direction: column; }
+    .editor-wrapper.active { display: flex; }
+    #subtitle-editor { font-family: monospace; font-size: 0.9em; }
     .editor-row { display: flex; align-items: center; border-bottom: 1px solid #f0f0f0; padding: 2px; }
     .editor-row > * { padding: 2px 4px; }
     .editor-index { flex-basis: 40px; flex-shrink: 0; }
     .editor-time-group { flex-basis: 150px; flex-shrink: 0; display: flex; align-items: center; }
     .editor-text { flex-grow: 1; }
-    .editor-row input[type="text"] { width: 80px; border: 1px solid #ddd; padding: 2px; }
-    .editor-row .time-adj-btn { font-size: 1em; line-height: 1; padding: 0 5px; margin: 0 2px; }
-    /* Modal Styles */
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-content { background: var(--white-color); padding: 20px; border-radius: 5px; width: 80%; max-width: 800px; height: 80%; display: flex; flex-direction: column; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .modal-body { flex-grow: 1; overflow-y: auto; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
-    .modal-footer { margin-top: 15px; text-align: right; }
-    .source-button { display: block; width: 100%; padding: 15px; margin-bottom: 10px; font-size: 1.2em; }
+    .editor-row input[type="text"] { width: 80px; border: 1px solid #ddd; padding: 2px; font-size: 0.9em; }
+    .active-editor-row { background-color: #e0ffe0; }
+    .file-browser .file-item { padding: 5px; cursor: pointer; }
+    .file-browser .file-item:hover { background-color: #f0f0f0; }
   </style>
 </head>
 <body>
-  <div class="main-container">
-    <div class="left-panel">
-        <h1 style="flex-shrink: 0;">字幕时间轴调整工具</h1>
-        <div class="section">
-            <h2>服务器设置 (可选)</h2>
-            <div class="adjustment-controls"><label for="serverTokenInput">访问 Token:</label><input type="password" id="serverTokenInput" placeholder="如果服务器设置了 Token" style="flex-grow: 1;"></div>
+  <div class="main-container p-2">
+    <header class="pb-2">
+      <h1 class="h4">字幕时间轴调整工具</h1>
+    </header>
+
+    <div class="row g-2 main-row">
+      <!-- Left Panel -->
+      <div class="col-lg-4">
+        <div class="panel">
+          <div class="card mb-2">
+            <div class="card-header">
+              <h2 class="h6 mb-0">
+                <a data-bs-toggle="collapse" href="#serverSettingsCollapse" role="button" aria-expanded="false" aria-controls="serverSettingsCollapse" class="text-decoration-none">
+                  服务器设置 (可选)
+                </a>
+              </h2>
+            </div>
+            <div class="collapse" id="serverSettingsCollapse">
+              <div class="card-body">
+                <div class="input-group">
+                  <span class="input-group-text">Token</span>
+                  <input type="password" id="serverTokenInput" class="form-control" placeholder="如果服务器设置了 Token">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card flex-grow-1">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h2 class="h6 mb-0">媒体文件</h2>
+              <button class="btn btn-primary btn-sm" onclick="openAddFileModal()">添加文件</button>
+            </div>
+            <div class="card-body d-flex flex-column p-2">
+              <nav>
+                <div class="nav nav-tabs" id="nav-tab" role="tablist">
+                  <button class="nav-link active" id="nav-video-tab" data-bs-toggle="tab" data-bs-target="#nav-video" type="button" role="tab">视频</button>
+                  <button class="nav-link" id="nav-subtitle-tab" data-bs-toggle="tab" data-bs-target="#nav-subtitle" type="button" role="tab">字幕</button>
+                </div>
+              </nav>
+              <div class="tab-content flex-grow-1" id="nav-tabContent">
+                <div class="tab-pane fade show active pt-2" id="nav-video" role="tabpanel">
+                  <div class="d-flex justify-content-end mb-1"><button class="btn btn-danger btn-sm" onclick="clearFileList('video')">清空</button></div>
+                  <div id="videoList" class="file-list card-body-scroll file-drop-area"></div>
+                </div>
+                <div class="tab-pane fade pt-2" id="nav-subtitle" role="tabpanel">
+                  <div class="d-flex justify-content-end mb-1"><button class="btn btn-danger btn-sm" onclick="clearFileList('subtitle')">清空</button></div>
+                  <div id="subtitleList" class="file-list card-body-scroll file-drop-area"></div>
+                </div>
+              </div>
+              <div id="status" class="mt-2 text-muted small"></div>
+            </div>
+          </div>
         </div>
-        <div class="section file-list-section">
-            <div class="list-header"><h2>媒体文件列表</h2><button class="action-btn" onclick="openAddFileModal()">添加文件</button></div>
-            <div id="videoListWrapper" class="file-list-wrapper" style="margin-top:10px;"><div class="list-header"><h4>视频</h4><button class="delete-btn" onclick="clearFileList('video')">清空</button></div><div id="videoList" class="file-list file-drop-area"></div></div>
-            <div id="subtitleListWrapper" class="file-list-wrapper" style="margin-top:10px;"><div class="list-header"><h4>字幕</h4><button class="delete-btn" onclick="clearFileList('subtitle')">清空</button></div><div id="subtitleList" class="file-list file-drop-area"></div></div>
-            <div id="status" style="margin-top: 10px; flex-shrink: 0;"></div>
+      </div>
+
+      <!-- Right Panel -->
+      <div class="col-lg-8">
+        <div class="panel">
+          <div class="card flex-grow-1">
+            <div class="card-header"><h2 class="h6 mb-0">预览和处理</h2></div>
+            <div class="card-body d-flex flex-column">
+              <div class="row g-2 mb-2">
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-body">
+                      <h6 class="card-title">播放器控制</h6>
+                      <div class="d-flex flex-wrap gap-2">
+                        <div class="input-group input-group-sm" style="width: 150px;">
+                          <label class="input-group-text" for="playbackRateInput">速度</label>
+                          <input type="number" id="playbackRateInput" class="form-control" min="0.1" max="4" step="0.1" value="1.0" onchange="setPlaybackRate()">
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                          <button class="btn btn-outline-secondary" onclick="setSpeed(0.5)">0.5x</button>
+                          <button class="btn btn-outline-secondary" onclick="setSpeed(1.0)">1.0x</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card">
+                    <div class="card-body">
+                      <h6 class="card-title">字幕时间轴批量调整</h6>
+                      <div class="d-flex flex-wrap gap-2">
+                        <div class="input-group input-group-sm" style="width: 200px;">
+                          <input type="number" id="customAdjustMs" class="form-control" value="100" placeholder="输入毫秒数">
+                          <button class="btn btn-secondary" onclick="customStepAdjust(true)">延迟</button>
+                          <button class="btn btn-secondary" onclick="customStepAdjust(false)">提前</button>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="stepAdjust(50, true)">延迟 50ms</button>
+                            <button class="btn btn-outline-secondary" onclick="stepAdjust(-50, true)">提前 50ms</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mb-2">
+                <button class="btn btn-success" onclick="loadFilesToPlayer()">加载/重置预览</button>
+                <button class="btn btn-warning" onclick="loadSubtitleForEditing()">单独编辑字幕</button>
+                <button class="btn btn-info" onclick="saveAdjustedSubtitle()">保存字幕</button>
+              </div>
+              <div class="video-wrapper mb-2">
+                <video id="videoPlayer" controls></video>
+                <div id="subtitleDisplay"></div>
+              </div>
+              
+              <div id="editor-resizer" class="resizer"></div>
+              
+              <div class="editor-wrapper flex-grow-1" id="editorWrapper">
+                <div class="d-flex justify-content-between align-items-center p-1 bg-light border-bottom">
+                  <h3 id="editor-title" class="h6 mb-0">字幕编辑器</h3>
+                  <div>
+                    <button class="btn btn-sm btn-primary" onclick="addSubtitle()">增加字幕</button>
+                    <button id="closeEditorBtn" type="button" class="btn-close" aria-label="Close"></button>
+                  </div>
+                </div>
+                <div id="subtitle-editor" class="card-body-scroll"></div>
+              </div>
+            </div>
+          </div>
         </div>
-    </div>
-    <div class="right-panel">
-        <div class="section player-wrapper">
-            <h2>预览和处理</h2>
-            <div class="adjustment-controls"><label>全局快捷微调:</label><button class="step-btn" onclick="stepAdjust(50, true)">« 延迟 50ms</button><button class="step-btn" onclick="stepAdjust(-50, true)">提前 50ms »</button><label for="playbackRateInput">播放速度:</label><input type="number" id="playbackRateInput" min="0.1" max="4" step="0.1" value="1.0" onchange="setPlaybackRate()" style="width: 60px;"><button class="speed-btn" onclick="setSpeed(0.5)">0.5x</button><button class="speed-btn" onclick="setSpeed(1.0)">1.0x</button></div>
-            <div class="adjustment-controls"><button onclick="loadFilesToPlayer()">加载/重置预览</button><button onclick="saveAdjustedSubtitle()">保存字幕</button></div>
-            <video id="videoPlayer" controls></video>
-            <div id="subtitleDisplay"></div>
-        </div>
-        <div id="editor-resizer" class="resizer"></div>
-                <div class="section editor-wrapper"><div class="editor-header"><h2 id="editor-title">字幕编辑器 (请先加载字幕)</h2><button id="closeEditorBtn" style="font-size:1.5em;background:none;border:none;cursor:pointer;">&times;</button></div><div id="subtitle-editor"></div></div>
+      </div>
     </div>
   </div>
 
-  <div id="addFileModal" class="modal-overlay"><div class="modal-content"><div class="modal-header"><h2 id="modalTitle">添加文件</h2><button onclick="closeModal()" style="font-size:1.5em;background:none;border:none;cursor:pointer;">&times;</button></div><div id="modalSourceSelection" class="modal-body"><button onclick="dom.fileUploader.click()" class="source-button">从本地上传</button><input type="file" id="fileUploader" style="display:none;" multiple/><button id="browseServerBtn" onclick="showServerBrowser()" class="source-button" disabled>从服务器浏览</button></div><div id="modalServerBrowser" class="modal-body" style="display:none;"><div class="list-header"><span id="current-path">/</span><button onclick="browseDirectory('')">返回根目录</button></div><div id="fileBrowser" class="file-browser"></div></div></div></div>
+  <!-- Add File Modal -->
+  <div class="modal fade" id="addFileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">添加文件</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modalSourceSelection">
+          <div class="d-grid gap-2">
+            <button onclick="dom.fileUploader.click()" class="btn btn-primary btn-lg">从本地上传</button>
+            <input type="file" id="fileUploader" style="display:none;" multiple/>
+            <button id="browseServerBtn" onclick="showServerBrowser()" class="btn btn-secondary btn-lg" disabled>从服务器浏览</button>
+          </div>
+        </div>
+        <div class="modal-body" id="modalServerBrowser" style="display:none;">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span id="current-path" class="text-muted">/</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="browseDirectory('')">返回根目录</button>
+          </div>
+          <div id="fileBrowser" class="file-browser border rounded p-2" style="min-height: 200px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
     // --- State & DOM Elements ---
-    let videoList = [], subtitleList = [], activeVideo = null, activeSubtitle = null, originalSubtitleData = null, activeSubtitleData = null, modalFileType = 'video';
-    const dom = { videoPlayer: document.getElementById('videoPlayer'), statusEl: document.getElementById('status'), modal: document.getElementById('addFileModal'), modalTitle: document.getElementById('modalTitle'), modalSourceSelection: document.getElementById('modalSourceSelection'), modalServerBrowser: document.getElementById('modalServerBrowser'), fileUploader: document.getElementById('fileUploader'), fileBrowserEl: document.getElementById('fileBrowser'), currentPathEl: document.getElementById('current-path'), browseServerBtn: document.getElementById('browseServerBtn'), serverTokenInput: document.getElementById('serverTokenInput'), playbackRateInput: document.getElementById('playbackRateInput'), subtitleEditor: document.getElementById('subtitle-editor'), editorTitle: document.getElementById('editor-title'), editorResizer: document.getElementById('editor-resizer'), playerWrapper: document.querySelector('.player-wrapper'), editorWrapper: document.querySelector('.editor-wrapper'), rightPanel: document.querySelector('.right-panel'), subtitleDisplay: document.getElementById('subtitleDisplay'), closeEditorBtn: document.getElementById('closeEditorBtn') };
+    let videoList = [], subtitleList = [], activeVideo = null, activeSubtitle = null, originalSubtitleData = null, activeSubtitleData = null;
+    let addFileModal; // Bootstrap Modal instance
+
+    const dom = {
+        videoPlayer: document.getElementById('videoPlayer'),
+        statusEl: document.getElementById('status'),
+        modalEl: document.getElementById('addFileModal'),
+        modalTitle: document.getElementById('modalTitle'),
+        modalSourceSelection: document.getElementById('modalSourceSelection'),
+        modalServerBrowser: document.getElementById('modalServerBrowser'),
+        fileUploader: document.getElementById('fileUploader'),
+        fileBrowserEl: document.getElementById('fileBrowser'),
+        currentPathEl: document.getElementById('current-path'),
+        browseServerBtn: document.getElementById('browseServerBtn'),
+        serverTokenInput: document.getElementById('serverTokenInput'),
+        playbackRateInput: document.getElementById('playbackRateInput'),
+        subtitleEditor: document.getElementById('subtitle-editor'),
+        editorTitle: document.getElementById('editor-title'),
+        editorResizer: document.getElementById('editor-resizer'),
+        editorWrapper: document.getElementById('editorWrapper'),
+        playerWrapper: document.querySelector('.player-wrapper'), // Note: This class is not in the new HTML, might need adjustment if used
+        rightPanel: document.querySelector('.col-lg-8 .panel'),
+        subtitleDisplay: document.getElementById('subtitleDisplay'),
+        closeEditorBtn: document.getElementById('closeEditorBtn')
+    };
 
     // --- Modal & File Addition Logic ---
-    function openAddFileModal() { dom.modal.style.display = 'flex'; dom.modalSourceSelection.style.display = 'block'; dom.modalServerBrowser.style.display = 'none'; }
-    function closeModal() { dom.modal.style.display = 'none'; }
-    function showServerBrowser() { dom.modalSourceSelection.style.display = 'none'; dom.modalServerBrowser.style.display = 'flex'; browseDirectory(); }
+    function openAddFileModal() { addFileModal.show(); dom.modalSourceSelection.style.display = 'block'; dom.modalServerBrowser.style.display = 'none'; }
+    function closeModal() { addFileModal.hide(); }
+    function showServerBrowser() { dom.modalSourceSelection.style.display = 'none'; dom.modalServerBrowser.style.display = 'block'; browseDirectory(); }
     dom.fileUploader.onchange = (e) => { addFiles(e.target.files, 'local'); };
 
     function addFiles(files, source, pathPrefix = '') {
@@ -109,12 +246,36 @@
 
     // --- Drag and Drop Logic ---
     function setupDragDrop() {
-        ['videoList', 'subtitleList'].forEach(id => {
-            const dropArea = document.getElementById(id);
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropArea.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
-            });
-            dropArea.addEventListener('drop', e => addFiles(e.dataTransfer.files, 'local'));
+        const dropArea = document.querySelector('.card-body .tab-content').parentElement;
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+        
+        let dragCounter = 0;
+
+        dropArea.addEventListener('dragenter', (e) => {
+            dragCounter++;
+            // Apply visual feedback only on the first enter
+            if (dragCounter === 1) {
+                dropArea.style.border = '2px dashed #0d6efd';
+                dropArea.style.backgroundColor = '#f0f8ff';
+            }
+        });
+
+        dropArea.addEventListener('dragleave', (e) => {
+            dragCounter--;
+            // Remove visual feedback only when leaving the drop area completely
+            if (dragCounter === 0) {
+                dropArea.style.border = '';
+                dropArea.style.backgroundColor = '';
+            }
+        });
+
+        dropArea.addEventListener('drop', e => {
+            dragCounter = 0;
+            dropArea.style.border = '';
+            dropArea.style.backgroundColor = '';
+            addFiles(e.dataTransfer.files, 'local');
         });
     }
 
@@ -126,7 +287,7 @@
             const data = await response.json();
             dom.currentPathEl.textContent = `/${data.path}`;
             renderServerBrowser(data.path, data.files);
-        } catch (error) { dom.fileBrowserEl.innerHTML = `<p style="color: red;">无法加载目录: ${error.message}</p>`; }
+        } catch (error) { dom.fileBrowserEl.innerHTML = `<p class="text-danger">无法加载目录: ${error.message}</p>`; }
     }
 
     function renderServerBrowser(currentServerPath, files) {
@@ -142,7 +303,7 @@
         files.forEach(file => {
             const itemEl = document.createElement('div');
             itemEl.className = 'file-item';
-            itemEl.textContent = `${file.type === 'directory' ? 'ðŸ“‚' : 'ðŸ“„'} ${file.name}`;
+            itemEl.textContent = `${file.type === 'directory' ? '📁' : '📄'} ${file.name}`;
             if (file.type === 'directory') {
                 itemEl.onclick = () => browseDirectory(currentServerPath ? `${currentServerPath}/${file.name}` : file.name);
             } else {
@@ -156,7 +317,7 @@
     function clearFileList(type) {
         const list = type === 'video' ? videoList : subtitleList;
         if (list.length > 0 && confirm(`确定要清空${type === 'video' ? '视频' : '字幕'}列表吗？`)) {
-            if (type === 'video') { videoList = []; activeVideo = null; } 
+            if (type === 'video') { videoList = []; activeVideo = null; }
             else { subtitleList = []; activeSubtitle = null; }
             renderFileList(type);
             updateStatus();
@@ -172,23 +333,30 @@
             const itemEl = document.createElement('div');
             itemEl.className = 'file-list-item';
             if ((type === 'video' && item === activeVideo) || (type === 'subtitle' && item === activeSubtitle)) itemEl.classList.add('active');
+            
             const nameSpan = document.createElement('span');
+            nameSpan.className = 'file-name';
             nameSpan.textContent = item.name;
-            nameSpan.onclick = () => { if (type === 'video') activeVideo = item; else activeSubtitle = item; renderFileList('video'); renderFileList('subtitle'); updateStatus(); };
+            
             const sourceSpan = document.createElement('span');
-            sourceSpan.className = 'file-source';
-            sourceSpan.textContent = `(${item.source.toUpperCase()})`;
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'delete-btn';
-            deleteBtn.textContent = '删除';
-            deleteBtn.onclick = () => { list.splice(index, 1); if (type === 'video' && item === activeVideo) activeVideo = null; if (type === 'subtitle' && item === activeSubtitle) activeSubtitle = null; renderFileList(type); updateStatus(); };
-            itemEl.appendChild(nameSpan); itemEl.appendChild(sourceSpan); itemEl.appendChild(deleteBtn);
+            sourceSpan.className = 'badge bg-secondary file-source';
+            sourceSpan.textContent = item.source;
+
+            itemEl.appendChild(nameSpan);
+            itemEl.appendChild(sourceSpan);
+            
+            itemEl.onclick = () => {
+                if (type === 'video') activeVideo = item; else activeSubtitle = item;
+                renderFileList('video');
+                renderFileList('subtitle');
+                updateStatus();
+            };
             listEl.appendChild(itemEl);
         });
     }
 
     function updateStatus() {
-        dom.statusEl.innerHTML = `<b>当前选择:</b> 视频 - <i>${activeVideo ? activeVideo.name : 'N/A'}</i> | 字幕 - <i>${activeSubtitle ? activeSubtitle.name : 'N/A'}</i>`;
+        dom.statusEl.innerHTML = `<b>当前:</b> 视频 - <i>${activeVideo ? activeVideo.name : 'N/A'}</i> | 字幕 - <i>${activeSubtitle ? activeSubtitle.name : 'N/A'}</i>`;
     }
 
     // --- Player and Adjustment Actions ---
@@ -198,16 +366,52 @@
         originalSubtitleData = activeSubtitleData = null;
         dom.subtitleEditor.innerHTML = '';
         dom.editorTitle.textContent = '字幕编辑器 (请先加载字幕)';
+        closeEditor();
         if (activeSubtitle) {
             try {
                 let text = activeSubtitle.source === 'local' ? await activeSubtitle.file.text() : await (await fetch(`/api/subtitle?path=${encodeURIComponent(activeSubtitle.path)}`, { headers: { 'X-Server-Token': dom.serverTokenInput.value } })).text();
                 const parsedData = parseSubtitle(text, activeSubtitle.name);
+
+                // Sort subtitles by start time to ensure correct order
+                const isSrt = activeSubtitle.name.endsWith('.srt');
+                parsedData.sort((a, b) => {
+                    const timeA = isSrt ? srtTimeToSeconds(a.startTime) : timeToSeconds(a.startTime);
+                    const timeB = isSrt ? srtTimeToSeconds(b.startTime) : timeToSeconds(b.startTime);
+                    return timeA - timeB;
+                });
+
                 originalSubtitleData = JSON.parse(JSON.stringify(parsedData));
                 activeSubtitleData = JSON.parse(JSON.stringify(parsedData));
                 renderSubtitleEditor();
+                showEditor();
             } catch (e) { alert(`加载字幕失败: ${e.message}`); }
         }
         displaySubtitle(true);
+    }
+
+    async function loadSubtitleForEditing() {
+        if (!activeSubtitle) return alert('请在列表中选择一个字幕文件');
+        originalSubtitleData = activeSubtitleData = null;
+        dom.subtitleEditor.innerHTML = '';
+        dom.editorTitle.textContent = '字幕编辑器 (请先加载字幕)';
+        closeEditor();
+        try {
+            let text = activeSubtitle.source === 'local' ? await activeSubtitle.file.text() : await (await fetch(`/api/subtitle?path=${encodeURIComponent(activeSubtitle.path)}`, { headers: { 'X-Server-Token': dom.serverTokenInput.value } })).text();
+            const parsedData = parseSubtitle(text, activeSubtitle.name);
+
+            // Sort subtitles by start time to ensure correct order
+            const isSrt = activeSubtitle.name.endsWith('.srt');
+            parsedData.sort((a, b) => {
+                const timeA = isSrt ? srtTimeToSeconds(a.startTime) : timeToSeconds(a.startTime);
+                const timeB = isSrt ? srtTimeToSeconds(b.startTime) : timeToSeconds(b.startTime);
+                return timeA - timeB;
+            });
+
+            originalSubtitleData = JSON.parse(JSON.stringify(parsedData));
+            activeSubtitleData = JSON.parse(JSON.stringify(parsedData));
+            renderSubtitleEditor();
+            showEditor();
+        } catch (e) { alert(`加载字幕失败: ${e.message}`); }
     }
 
     async function saveAdjustedSubtitle() {
@@ -228,18 +432,95 @@
     }
 
     // --- Editor and Time Logic ---
+    function addSubtitle() {
+        if (!activeSubtitleData) return;
+
+        const isSrt = activeSubtitle.name.endsWith('.srt');
+        let currentTime = 0;
+        // Use video current time if available, otherwise find a sensible default
+        if (dom.videoPlayer.src && !dom.videoPlayer.paused) {
+            currentTime = dom.videoPlayer.currentTime;
+        } else if (activeSubtitleData.length > 0) {
+            // If no video, insert after the last subtitle
+            const lastTime = activeSubtitleData[activeSubtitleData.length - 1].endTime;
+            currentTime = (isSrt ? srtTimeToSeconds(lastTime) : timeToSeconds(lastTime)) + 0.1;
+        }
+
+        // Find the correct index to insert the new subtitle
+        let insertIndex = activeSubtitleData.findIndex(line => {
+            const startTime = isSrt ? srtTimeToSeconds(line.startTime) : timeToSeconds(line.startTime);
+            return startTime > currentTime;
+        });
+
+        if (insertIndex === -1) {
+            insertIndex = activeSubtitleData.length;
+        }
+
+        // Determine the new ID
+        let newId = 1;
+        if (isSrt) {
+            if (insertIndex > 0) {
+                newId = parseInt(activeSubtitleData[insertIndex - 1].id, 10) + 1;
+            } else {
+                newId = 1;
+            }
+        }
+
+        const newSubtitle = {
+            id: isSrt ? newId.toString() : null, // ID is specific to SRT
+            startTime: isSrt ? secondsToSrtTime(currentTime) : secondsToTime(currentTime),
+            endTime: isSrt ? secondsToSrtTime(currentTime + 2) : secondsToTime(currentTime + 2),
+            text: '[新字幕]'
+        };
+
+        // Insert the new subtitle
+        activeSubtitleData.splice(insertIndex, 0, newSubtitle);
+
+        // If it's an SRT file, re-sequence all subsequent subtitle IDs
+        if (isSrt) {
+            for (let i = insertIndex + 1; i < activeSubtitleData.length; i++) {
+                activeSubtitleData[i].id = (parseInt(activeSubtitleData[i-1].id, 10) + 1).toString();
+            }
+        }
+
+        renderSubtitleEditor();
+        displaySubtitle(true);
+        jumpToEditorLine(insertIndex);
+    }
+
+    function deleteSubtitle(index) {
+        if (confirm('确定要删除这条字幕吗？')) {
+            activeSubtitleData.splice(index, 1);
+            renderSubtitleEditor();
+        }
+    }
+
+    function updateLineText(index, newText) {
+        activeSubtitleData[index].text = newText;
+        displaySubtitle(true);
+    }
+
     function renderSubtitleEditor() {
         dom.subtitleEditor.innerHTML = '';
         dom.editorTitle.textContent = `正在编辑: ${activeSubtitle.name}`;
         activeSubtitleData.forEach((line, index) => {
             const row = document.createElement('div');
             row.className = 'editor-row';
-            row.dataset.index = index; // Add data-index attribute
+            row.dataset.index = index;
             row.innerHTML = `
                 <div class="editor-index">${line.id || index + 1}</div>
-                <div class="editor-time-group"><button class="time-adj-btn" onclick="adjustLineTime(${index}, 'start', -0.05)">-</button><input type="text" value="${line.startTime}" onchange="updateLineTime(${index}, 'start', this.value)"><button class="time-adj-btn" onclick="adjustLineTime(${index}, 'start', 0.05)">+</button></div>
-                <div class="editor-time-group"><button class="time-adj-btn" onclick="adjustLineTime(${index}, 'end', -0.05)">-</button><input type="text" value="${line.endTime}" onchange="updateLineTime(${index}, 'end', this.value)"><button class="time-adj-btn" onclick="adjustLineTime(${index}, 'end', 0.05)">+</button></div>
-                <div class="editor-text">${line.text}</div>
+                <div class="editor-time-group">
+                    <button class="btn btn-sm btn-outline-secondary time-adj-btn" onclick="adjustLineTime(${index}, 'startTime', -0.05)">-</button>
+                    <input type="text" id="startTime-${index}" value="${line.startTime}" onchange="updateLineTime(${index}, 'startTime', this.value)">
+                    <button class="btn btn-sm btn-outline-secondary time-adj-btn" onclick="adjustLineTime(${index}, 'startTime', 0.05)">+</button>
+                </div>
+                <div class="editor-time-group">
+                    <button class="btn btn-sm btn-outline-secondary time-adj-btn" onclick="adjustLineTime(${index}, 'endTime', -0.05)">-</button>
+                    <input type="text" id="endTime-${index}" value="${line.endTime}" onchange="updateLineTime(${index}, 'endTime', this.value)">
+                    <button class="btn btn-sm btn-outline-secondary time-adj-btn" onclick="adjustLineTime(${index}, 'endTime', 0.05)">+</button>
+                </div>
+                <div class="editor-text" contenteditable="true" onblur="updateLineText(${index}, this.innerText)">${line.text}</div>
+                <button class="btn btn-sm btn-danger" onclick="deleteSubtitle(${index})">删除</button>
             `;
             dom.subtitleEditor.appendChild(row);
         });
@@ -248,7 +529,13 @@
     function updateLineTime(index, part, value) {
         const isSrt = activeSubtitle.name.endsWith('.srt');
         let timeInSeconds = isSrt ? srtTimeToSeconds(value) : timeToSeconds(value);
-        if (isNaN(timeInSeconds)) { alert('时间格式无效'); renderSubtitleEditor(); return; }
+        if (isNaN(timeInSeconds)) {
+            alert('时间格式无效');
+            // Re-render to restore the original value if input is invalid
+            const originalTime = activeSubtitleData[index][part];
+            document.getElementById(`${part}-${index}`).value = originalTime;
+            return;
+        }
         activeSubtitleData[index][part] = isSrt ? secondsToSrtTime(timeInSeconds) : secondsToTime(timeInSeconds);
         displaySubtitle(true);
     }
@@ -257,13 +544,34 @@
         const isSrt = activeSubtitle.name.endsWith('.srt');
         const originalTime = activeSubtitleData[index][part];
         let timeInSeconds = isSrt ? srtTimeToSeconds(originalTime) : timeToSeconds(originalTime);
+        
         timeInSeconds += amountInSeconds;
         if (timeInSeconds < 0) timeInSeconds = 0;
-        activeSubtitleData[index][part] = isSrt ? secondsToSrtTime(timeInSeconds) : secondsToTime(timeInSeconds);
-        renderSubtitleEditor();
+
+        const newTime = isSrt ? secondsToSrtTime(timeInSeconds) : secondsToTime(timeInSeconds);
+        activeSubtitleData[index][part] = newTime;
+        
+        // Directly update the input field value
+        const inputElement = document.getElementById(`${part}-${index}`);
+        if (inputElement) {
+            inputElement.value = newTime;
+        }
+        
         displaySubtitle(true);
     }
     
+    function customStepAdjust(isDelay) {
+        const msInput = document.getElementById('customAdjustMs');
+        let amountInMs = parseInt(msInput.value, 10);
+        if (isNaN(amountInMs)) {
+            return alert('请输入有效的毫秒数');
+        }
+        if (!isDelay) {
+            amountInMs = -amountInMs;
+        }
+        stepAdjust(amountInMs, true);
+    }
+
     function stepAdjust(amountInMs, isGlobal) {
         if (!activeSubtitleData) return alert('请先加载字幕');
         const amountInSeconds = amountInMs / 1000;
@@ -302,28 +610,13 @@
     function secondsToTime(s){if(s<0)s=0;const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60);s%=60;const c=Math.floor(s);const f=Math.round((s-c)*100);return`${h}:${String(m).padStart(2,'0')}:${String(c).padStart(2,'0')}.${String(f).padStart(2,'0')}`}
     function setPlaybackRate() { dom.videoPlayer.playbackRate = parseFloat(dom.playbackRateInput.value) || 1; }
     function setSpeed(rate) { dom.playbackRateInput.value = rate; setPlaybackRate(); }
-    let animationFrameId = null;
+    
+    let animationFrameId = null, currentDisplayedSubtitleIndex = -1;
     function displaySubtitle(forceUpdate = false) {
       if (!forceUpdate && animationFrameId) cancelAnimationFrame(animationFrameId);
       const currentTime = dom.videoPlayer.currentTime;
       let currentSubtitle = '';
-      if (activeSubtitleData) {
-        const isSrt = activeSubtitle.name.endsWith('.srt');
-        for (const subtitle of activeSubtitleData) {
-          const startInSeconds = isSrt ? srtTimeToSeconds(subtitle.startTime) : timeToSeconds(subtitle.startTime);
-          const endInSeconds = isSrt ? srtTimeToSeconds(subtitle.endTime) : timeToSeconds(subtitle.endTime);
-          if (currentTime >= startInSeconds && currentTime <= endInSeconds) {
-            currentSubtitle = subtitle.text;
-            break;
-          }
-        }
-      }
-      let animationFrameId = null, currentDisplayedSubtitleIndex = -1;
-    function displaySubtitle(forceUpdate = false) {
-      if (!forceUpdate && animationFrameId) cancelAnimationFrame(animationFrameId);
-      const currentTime = dom.videoPlayer.currentTime;
-      let currentSubtitle = '';
-      currentDisplayedSubtitleIndex = -1; // Reset index
+      currentDisplayedSubtitleIndex = -1;
       if (activeSubtitleData) {
         const isSrt = activeSubtitle.name.endsWith('.srt');
         for (let i = 0; i < activeSubtitleData.length; i++) {
@@ -332,12 +625,21 @@
           const endInSeconds = isSrt ? srtTimeToSeconds(subtitle.endTime) : timeToSeconds(subtitle.endTime);
           if (currentTime >= startInSeconds && currentTime <= endInSeconds) {
             currentSubtitle = subtitle.text;
-            currentDisplayedSubtitleIndex = i; // Store the index
+            currentDisplayedSubtitleIndex = i;
             break;
           }
         }
       }
       dom.subtitleDisplay.textContent = currentSubtitle;
+      
+      // Highlight editor line
+      const prevActive = dom.subtitleEditor.querySelector('.active-editor-row');
+      if (prevActive) prevActive.classList.remove('active-editor-row');
+      if (currentDisplayedSubtitleIndex !== -1) {
+        const targetRow = dom.subtitleEditor.querySelector(`[data-index="${currentDisplayedSubtitleIndex}"]`);
+        if (targetRow) targetRow.classList.add('active-editor-row');
+      }
+
       if (!dom.videoPlayer.paused) animationFrameId = requestAnimationFrame(() => displaySubtitle(false));
     }
     dom.videoPlayer.addEventListener('play', () => displaySubtitle(false));
@@ -345,24 +647,16 @@
     dom.videoPlayer.addEventListener('pause', () => cancelAnimationFrame(animationFrameId));
 
     // --- Editor Jump & Visibility Logic ---
+    function showEditor() {
+        dom.editorWrapper.classList.add('active');
+        dom.editorWrapper.style.height = '200px'; // Initial height
+    }
+
     function jumpToEditorLine(index) {
         if (index < 0 || !activeSubtitleData || index >= activeSubtitleData.length) return;
-
-        // Show editor if hidden
-        dom.editorWrapper.style.height = '200px'; // Or a default height
-        dom.editorWrapper.style.opacity = '1';
-        dom.editorResizer.classList.add('active');
-
+        showEditor();
         const targetRow = dom.subtitleEditor.querySelector(`[data-index="${index}"]`);
         if (targetRow) {
-            // Remove active class from previous row
-            const prevActive = dom.subtitleEditor.querySelector('.active-editor-row');
-            if (prevActive) prevActive.classList.remove('active-editor-row');
-
-            // Add active class to current row
-            targetRow.classList.add('active-editor-row');
-
-            // Scroll into view
             targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
@@ -370,15 +664,13 @@
     dom.subtitleDisplay.addEventListener('click', () => {
         if (currentDisplayedSubtitleIndex !== -1) {
             jumpToEditorLine(currentDisplayedSubtitleIndex);
-            dom.videoPlayer.pause(); // Pause the video
+            dom.videoPlayer.pause();
         }
     });
 
     function closeEditor() {
-        dom.editorWrapper.style.height = '0px';
-        dom.editorWrapper.style.opacity = '0';
-        dom.editorResizer.classList.remove('active');
-        // Remove active class from any highlighted row
+        dom.editorWrapper.classList.remove('active');
+        dom.editorWrapper.style.height = '0';
         const prevActive = dom.subtitleEditor.querySelector('.active-editor-row');
         if (prevActive) prevActive.classList.remove('active-editor-row');
     }
@@ -388,42 +680,35 @@
     // --- Resizer Logic ---
     function setupResizer() {
         let isResizing = false;
-        let lastY = 0;
-        let initialEditorHeight = 0;
-
         dom.editorResizer.addEventListener('mousedown', (e) => {
             isResizing = true;
-            lastY = e.clientY;
-            initialEditorHeight = dom.editorWrapper.offsetHeight;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = 'none'; // Prevent text selection during drag
+            document.body.style.userSelect = 'none';
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         });
 
-        document.addEventListener('mousemove', (e) => {
+        function onMouseMove(e) {
             if (!isResizing) return;
-            const dy = e.clientY - lastY;
-            let newHeight = initialEditorHeight - dy;
+            const rightPanelRect = dom.rightPanel.getBoundingClientRect();
+            const newHeight = rightPanelRect.bottom - e.clientY - dom.editorResizer.offsetHeight;
+            const minHeight = 50;
+            const maxHeight = rightPanelRect.height - 200; // Keep player visible
+            if (newHeight > minHeight && newHeight < maxHeight) {
+                dom.editorWrapper.style.height = `${newHeight}px`;
+            }
+        }
 
-            const minHeight = 50; // Minimum height for the editor
-            const maxHeight = dom.rightPanel.offsetHeight - dom.playerWrapper.offsetHeight - dom.editorResizer.offsetHeight - 20; // Approximate max height
-
-            if (newHeight < minHeight) newHeight = minHeight;
-            if (newHeight > maxHeight) newHeight = maxHeight;
-
-            dom.editorWrapper.style.height = `${newHeight}px`;
-            dom.editorWrapper.style.opacity = '1'; // Ensure opacity is 1 during resize
-            dom.playerWrapper.style.flexGrow = '1'; // Ensure player takes remaining space
-        });
-
-        document.addEventListener('mouseup', () => {
+        function onMouseUp() {
             isResizing = false;
-            dom.editorResizer.style.cursor = 'ns-resize';
             document.body.style.userSelect = '';
-        });
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
     }
 
     // --- Initial Load ---
     document.addEventListener('DOMContentLoaded', async () => {
+        addFileModal = new bootstrap.Modal(dom.modalEl);
         try {
             const response = await fetch('/api/status');
             const data = await response.json();
@@ -436,66 +721,7 @@
         } catch (e) { dom.browseServerBtn.title = '无法连接到服务器'; }
         setupDragDrop();
         updateStatus();
-        setupResizer(); // Initialize resizer
-    });
-      if (!dom.videoPlayer.paused) animationFrameId = requestAnimationFrame(() => displaySubtitle(false));
-    }
-    dom.videoPlayer.addEventListener('play', () => displaySubtitle(false));
-    dom.videoPlayer.addEventListener('seeking', () => displaySubtitle(true));
-    dom.videoPlayer.addEventListener('pause', () => cancelAnimationFrame(animationFrameId));
-
-    // --- Resizer Logic ---
-    function setupResizer() {
-        let isResizing = false;
-        let lastY = 0;
-        let initialEditorHeight = 0;
-
-        dom.editorResizer.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            lastY = e.clientY;
-            initialEditorHeight = dom.editorWrapper.offsetHeight;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = 'none'; // Prevent text selection during drag
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            const dy = e.clientY - lastY;
-            let newHeight = initialEditorHeight - dy;
-
-            // Ensure editor doesn't go too small or too large
-            const minHeight = 50; // Minimum height for the editor
-            const maxHeight = dom.rightPanel.offsetHeight - dom.playerWrapper.offsetHeight - dom.editorResizer.offsetHeight - 20; // Approximate max height
-
-            if (newHeight < minHeight) newHeight = minHeight;
-            // if (newHeight > maxHeight) newHeight = maxHeight; // This might be tricky with flex-grow on player
-
-            dom.editorWrapper.style.height = `${newHeight}px`;
-            dom.playerWrapper.style.flexGrow = '1'; // Ensure player takes remaining space
-        });
-
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
-            dom.editorResizer.style.cursor = 'ns-resize';
-            document.body.style.userSelect = '';
-        });
-    }
-
-    // --- Initial Load ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        try {
-            const response = await fetch('/api/status');
-            const data = await response.json();
-            if (data.isServerFsEnabled) {
-                dom.browseServerBtn.disabled = false;
-                dom.browseServerBtn.title = '浏览服务器上的文件';
-            } else {
-                dom.browseServerBtn.title = '服务器未配置媒体目录';
-            }
-        } catch (e) { dom.browseServerBtn.title = '无法连接到服务器'; }
-        setupDragDrop();
-        updateStatus();
-        setupResizer(); // Initialize resizer
+        setupResizer();
     });
 
     // --- PARSING LOGIC ---
@@ -544,7 +770,6 @@
             return null;
         }).filter(Boolean);
     }
-
   </script>
 </body>
 </html>
